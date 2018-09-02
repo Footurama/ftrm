@@ -4,6 +4,9 @@ const partybus = require('partybus');
 jest.mock('tubemail-mdns');
 const tubemailMDNS = require('tubemail-mdns');
 
+jest.mock('fs');
+const fs = require('fs');
+
 jest.mock('../lib/normalize-config.js');
 const normalize = require('../lib/normalize-config.js');
 
@@ -81,4 +84,16 @@ test(`Set index for input and output`, async () => {
 	await ftrm.run({factory}, opts);
 	expect(factory.mock.calls[0][1][0].index).toBe(0);
 	expect(factory.mock.calls[0][2][0].index).toBe(0);
+});
+
+test(`Run scripts in specified dir`, async () => {
+	fs._readdir = ['a.js', 'b.JS', 'c.json'];
+	const ftrm = await Ftrm({});
+	const a = [{ factory: jest.fn() }, {}];
+	jest.doMock('/abc/a.js', () => a, {virtual: true});
+	const b = [{ factory: jest.fn() }, {}];
+	jest.doMock('/abc/b.JS', () => b, {virtual: true});
+	await ftrm.runDir('/abc');
+	expect(a[0].factory.mock.calls.length).toBe(1);
+	expect(b[0].factory.mock.calls.length).toBe(1);
 });

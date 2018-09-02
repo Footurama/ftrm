@@ -2,6 +2,13 @@ const partybus = require('partybus');
 const normalize = require('./lib/normalize-config.js');
 const Input = require('./lib/input.js');
 const Output = require('./lib/output.js');
+const path = require('path');
+const fs = require('fs');
+
+const readdir = (dir) => new Promise((resolve, reject) => fs.readdir(dir, (err, files) => {
+	if (err) reject(err);
+	else resolve(files);
+}));
 
 class FTRM {
 	constructor (bus) {
@@ -37,6 +44,15 @@ class FTRM {
 
 		// Run factory
 		await lib.factory(opts, input, output, this._bus);
+	}
+
+	async runDir (dir) {
+		const files = await readdir(dir);
+		const instances = files
+			.filter((f) => f.toLowerCase().substr(-3) === '.js')
+			.map((f) => require(path.join(dir, f)))
+			.map((i) => this.run(i[0], i[1]));
+		await Promise.all(instances);
 	}
 }
 
