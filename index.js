@@ -13,6 +13,7 @@ const readdir = (dir) => new Promise((resolve, reject) => fs.readdir(dir, (err, 
 class FTRM {
 	constructor (bus) {
 		this._bus = bus;
+		this._destroy = [];
 	}
 
 	async run (lib, opts) {
@@ -43,7 +44,8 @@ class FTRM {
 		});
 
 		// Run factory
-		await lib.factory(opts, input, output, this._bus);
+		const destroy = await lib.factory(opts, input, output, this._bus);
+		if (typeof destroy === 'function') this._destroy.push(destroy);
 	}
 
 	async runDir (dir) {
@@ -53,6 +55,10 @@ class FTRM {
 			.map((f) => require(path.join(dir, f)))
 			.map((i) => this.run(i[0], i[1]));
 		await Promise.all(instances);
+	}
+
+	async shutdown () {
+		await Promise.all(this._destroy.map((d) => d()));
 	}
 }
 

@@ -97,3 +97,11 @@ test(`Run scripts in specified dir`, async () => {
 	expect(a[0].factory.mock.calls.length).toBe(1);
 	expect(b[0].factory.mock.calls.length).toBe(1);
 });
+
+test(`Run all destroy methods`, async () => {
+	const ftrm = await Ftrm({});
+	const destroy = jest.fn();
+	await ftrm.run({ factory: () => destroy }, {});
+	await ftrm.shutdown();
+	expect(destroy.mock.calls.length).toBe(1);
+});
