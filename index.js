@@ -3,11 +3,16 @@ const normalize = require('./lib/normalize-config.js');
 const Input = require('./lib/input.js');
 const Output = require('./lib/output.js');
 const path = require('path');
+const os = require('os');
 const fs = require('fs');
 
 const readdir = (dir) => new Promise((resolve, reject) => fs.readdir(dir, (err, files) => {
 	if (err) reject(err);
 	else resolve(files);
+}));
+const readFile = (file) => new Promise((resolve, reject) => fs.readFile(file, (err, data) => {
+	if (err) reject(err);
+	else resolve(data);
 }));
 
 class FTRM {
@@ -66,6 +71,9 @@ module.exports = async (opts) => {
 	// Kick-off partybus
 	const pbOpts = Object.assign({}, opts);
 	if (pbOpts.discovery === undefined) pbOpts.discovery = require('tubemail-mdns')();
+	if (pbOpts.ca === undefined) pbOpts.ca = await readFile(path.join(process.cwd(), 'ca.pem'));
+	if (pbOpts.cert === undefined) pbOpts.cert = await readFile(path.join(process.cwd(), os.hostname(), 'crt.pem'));
+	if (pbOpts.key === undefined) pbOpts.key = await readFile(path.join(process.cwd(), os.hostname(), 'key.pem'));
 	const bus = await partybus(pbOpts);
 
 	// Create new instance of FTRM

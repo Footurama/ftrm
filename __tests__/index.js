@@ -1,3 +1,6 @@
+const path = require('path');
+const os = require('os');
+
 jest.mock('partybus');
 const partybus = require('partybus');
 
@@ -18,17 +21,47 @@ const Output = require('../lib/output.js');
 
 const Ftrm = require('..');
 
-test(`Pass through options to partybus`, () => {
+test(`Pass through options to partybus`, async () => {
 	const opts = { a: true };
-	Ftrm(opts);
+	await Ftrm(opts);
 	expect(partybus.mock.calls[0][0]).toMatchObject(opts);
 });
 
-test(`Use mdns by default`, () => {
-	Ftrm({});
+test(`Use mdns by default`, async () => {
+	await Ftrm({});
 	expect(partybus.mock.calls[0][0]).toMatchObject({
 		discovery: tubemailMDNS._obj
 	});
+});
+
+test(`Load default CA certificate`, async () => {
+	await Ftrm({
+		cert: Buffer.alloc(0),
+		key: Buffer.alloc(0)
+	});
+	expect(fs.readFile.mock.calls[0][0]).toEqual(
+		path.join(process.cwd(), 'ca.pem')
+	);
+});
+
+test(`Load default client certificate`, async () => {
+	await Ftrm({
+		ca: Buffer.alloc(0),
+		key: Buffer.alloc(0)
+	});
+	expect(fs.readFile.mock.calls[0][0]).toEqual(
+		path.join(process.cwd(), os.hostname(), 'crt.pem')
+	);
+});
+
+test(`Load default client key`, async () => {
+	await Ftrm({
+		ca: Buffer.alloc(0),
+		cert: Buffer.alloc(0)
+	});
+	expect(fs.readFile.mock.calls[0][0]).toEqual(
+		path.join(process.cwd(), os.hostname(), 'key.pem')
+	);
 });
 
 test(`Call lib's check function`, async () => {
