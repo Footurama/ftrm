@@ -74,12 +74,16 @@ module.exports = async (opts) => {
 	if (opts.ca === undefined) opts.ca = await readFile(path.join(process.cwd(), 'ca.pem'));
 	if (opts.cert === undefined) opts.cert = await readFile(path.join(process.cwd(), os.hostname(), 'crt.pem'));
 	if (opts.key === undefined) opts.key = await readFile(path.join(process.cwd(), os.hostname(), 'key.pem'));
+	if (opts.runDir === undefined) opts.runDir = path.join(process.cwd(), os.hostname());
 
 	// Kick-off partybus
 	const bus = await partybus(opts);
 
 	// Create new instance of FTRM
 	const ftrm = new FTRM(bus);
+
+	// Run dir if specified
+	if (opts.runDir) await ftrm.runDir(opts.runDir);
 
 	return ftrm;
 };

@@ -120,13 +120,14 @@ test(`Set index for input and output`, async () => {
 });
 
 test(`Run scripts in specified dir`, async () => {
-	fs._readdir = ['a.js', 'b.JS', 'c.json'];
-	const ftrm = await Ftrm({});
+	fs.readdir.mockImplementationOnce((dir, cb) => cb(null, ['a.js', 'b.JS', 'c.json']));
+	const ftrm = await Ftrm({ runDir: null });
 	const a = [{ factory: jest.fn() }, {}];
 	jest.doMock('/abc/a.js', () => a, {virtual: true});
 	const b = [{ factory: jest.fn() }, {}];
 	jest.doMock('/abc/b.JS', () => b, {virtual: true});
 	await ftrm.runDir('/abc');
+	expect(fs.readdir.mock.calls[0][0]).toEqual('/abc');
 	expect(a[0].factory.mock.calls.length).toBe(1);
 	expect(b[0].factory.mock.calls.length).toBe(1);
 });
@@ -137,4 +138,22 @@ test(`Run all destroy methods`, async () => {
 	await ftrm.run({ factory: () => destroy }, {});
 	await ftrm.shutdown();
 	expect(destroy.mock.calls.length).toBe(1);
+});
+
+test(`Set default runDir`, async () => {
+	const opts = {};
+	await Ftrm(opts);
+	expect(opts.runDir).toEqual(path.join(process.cwd(), os.hostname()));
+});
+
+test(`Call runDir with specified option`, async () => {
+	const opts = { runDir: '/abc' };
+	await Ftrm(opts);
+	expect(fs.readdir.mock.calls[0][0]).toEqual(opts.runDir);
+});
+
+test(`Don't call runDir if option is null`, async () => {
+	const opts = { runDir: null };
+	await Ftrm(opts);
+	expect(fs.readdir.mock.calls.length).toBe(0);
 });
