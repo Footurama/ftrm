@@ -68,13 +68,15 @@ class FTRM {
 }
 
 module.exports = async (opts) => {
+	// Some defaults
+	if (opts === undefined) opts = {};
+	if (opts.discovery === undefined) opts.discovery = require('tubemail-mdns')();
+	if (opts.ca === undefined) opts.ca = await readFile(path.join(process.cwd(), 'ca.pem'));
+	if (opts.cert === undefined) opts.cert = await readFile(path.join(process.cwd(), os.hostname(), 'crt.pem'));
+	if (opts.key === undefined) opts.key = await readFile(path.join(process.cwd(), os.hostname(), 'key.pem'));
+
 	// Kick-off partybus
-	const pbOpts = Object.assign({}, opts);
-	if (pbOpts.discovery === undefined) pbOpts.discovery = require('tubemail-mdns')();
-	if (pbOpts.ca === undefined) pbOpts.ca = await readFile(path.join(process.cwd(), 'ca.pem'));
-	if (pbOpts.cert === undefined) pbOpts.cert = await readFile(path.join(process.cwd(), os.hostname(), 'crt.pem'));
-	if (pbOpts.key === undefined) pbOpts.key = await readFile(path.join(process.cwd(), os.hostname(), 'key.pem'));
-	const bus = await partybus(pbOpts);
+	const bus = await partybus(opts);
 
 	// Create new instance of FTRM
 	const ftrm = new FTRM(bus);

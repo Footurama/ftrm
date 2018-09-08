@@ -28,7 +28,7 @@ test(`Pass through options to partybus`, async () => {
 });
 
 test(`Use mdns by default`, async () => {
-	await Ftrm({});
+	await Ftrm();
 	expect(partybus.mock.calls[0][0]).toMatchObject({
 		discovery: tubemailMDNS._obj
 	});
