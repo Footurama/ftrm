@@ -159,3 +159,21 @@ test(`Don't call runDir if option is null`, async () => {
 	await Ftrm(opts);
 	expect(fs.readdir.mock.calls.length).toBe(0);
 });
+
+test(`Listen to SIGTERM and SIGINT`, async () => {
+	const sigterm = process.listeners('SIGTERM').length;
+	const sigint = process.listeners('SIGINT').length;
+	await Ftrm();
+	expect(process.listeners('SIGTERM').length - sigterm).toBe(1);
+	expect(process.listeners('SIGINT').length - sigint).toBe(1);
+});
+
+test(`Suppress listing to SIGTERM and SIGINT`, async () => {
+	const sigterm = process.listeners('SIGTERM').length;
+	const sigint = process.listeners('SIGINT').length;
+	await Ftrm({
+		noSignalListeners: true
+	});
+	expect(process.listeners('SIGTERM').length - sigterm).toBe(0);
+	expect(process.listeners('SIGINT').length - sigint).toBe(0);
+});

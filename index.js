@@ -86,6 +86,13 @@ module.exports = async (opts) => {
 	// Create new instance of FTRM
 	const ftrm = new FTRM(bus);
 
+	// Install listener to SIGINT and SIGTERM
+	if (!opts.noSignalListeners) {
+		const shutdown = () => this.shutdown();
+		process.on('SIGINT', shutdown);
+		process.on('SIGTERM', shutdown);
+	}
+
 	// Run dir if specified
 	if (opts.runDir) await ftrm.runDir(opts.runDir);
 
