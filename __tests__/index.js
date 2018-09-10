@@ -77,7 +77,7 @@ test(`Call lib's factory function`, async () => {
 	const ftrm = await Ftrm({});
 	const factory = jest.fn();
 	const opts = { input: [{name: 'a'}], output: [{name: 'b'}] };
-	await ftrm.run({factory}, opts);
+	const ftrm2 = await ftrm.run({factory}, opts);
 	expect(factory.mock.calls[0][0]).toBe(opts);
 	expect(factory.mock.calls[0][1][0]).toBeInstanceOf(Input);
 	expect(factory.mock.calls[0][1]['a']).toBe(factory.mock.calls[0][1]['a']);
@@ -88,6 +88,7 @@ test(`Call lib's factory function`, async () => {
 	expect(Input.mock.calls[0][1]).toBe(partybus._bus);
 	expect(Output.mock.calls[0][0]).toBe(opts.output[0]);
 	expect(Output.mock.calls[0][1]).toBe(partybus._bus);
+	expect(ftrm2).toBe(ftrm);
 });
 
 test(`Create iterator for inputs`, async () => {
@@ -126,10 +127,11 @@ test(`Run scripts in specified dir`, async () => {
 	jest.doMock('/abc/a.js', () => a, {virtual: true});
 	const b = [{ factory: jest.fn() }, {}];
 	jest.doMock('/abc/b.JS', () => b, {virtual: true});
-	await ftrm.runDir('/abc');
+	const ftrm2 = await ftrm.runDir('/abc');
 	expect(fs.readdir.mock.calls[0][0]).toEqual('/abc');
 	expect(a[0].factory.mock.calls.length).toBe(1);
 	expect(b[0].factory.mock.calls.length).toBe(1);
+	expect(ftrm2).toBe(ftrm);
 });
 
 test(`Run all destroy methods`, async () => {

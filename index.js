@@ -51,6 +51,8 @@ class FTRM {
 		// Run factory
 		const destroy = await lib.factory(opts, input, output, this._bus);
 		if (typeof destroy === 'function') this._destroy.push(destroy);
+
+		return this;
 	}
 
 	async runDir (dir) {
@@ -60,6 +62,8 @@ class FTRM {
 			.map((f) => require(path.join(dir, f)))
 			.map((i) => this.run(i[0], i[1]));
 		await Promise.all(instances);
+
+		return this;
 	}
 
 	async shutdown () {
