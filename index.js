@@ -75,7 +75,7 @@ module.exports = async (opts) => {
 	// Some defaults
 	if (opts === undefined) opts = {};
 	if (opts.discovery === undefined) opts.discovery = require('tubemail-mdns')();
-	if (opts.ca === undefined) opts.ca = await readFile(path.join(process.cwd(), 'ca.pem'));
+	if (opts.ca === undefined) opts.ca = await readFile(path.join(process.cwd(), 'ca.crt.pem'));
 	if (opts.cert === undefined) opts.cert = await readFile(path.join(process.cwd(), os.hostname(), 'crt.pem'));
 	if (opts.key === undefined) opts.key = await readFile(path.join(process.cwd(), os.hostname(), 'key.pem'));
 	if (opts.runDir === undefined) opts.runDir = path.join(process.cwd(), os.hostname());

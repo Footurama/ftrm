@@ -40,7 +40,7 @@ test(`Load default CA certificate`, async () => {
 		key: Buffer.alloc(0)
 	});
 	expect(fs.readFile.mock.calls[0][0]).toEqual(
-		path.join(process.cwd(), 'ca.pem')
+		path.join(process.cwd(), 'ca.crt.pem')
 	);
 });
 
