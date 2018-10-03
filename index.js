@@ -16,7 +16,8 @@ const readFile = (file) => new Promise((resolve, reject) => fs.readFile(file, (e
 }));
 
 class FTRM {
-	constructor (bus) {
+	constructor (bus, opts) {
+		Object.assign(this, opts);
 		this._bus = bus;
 		this._destroy = [];
 	}
@@ -87,13 +88,13 @@ module.exports = async (opts) => {
 	if (opts.ca === undefined) opts.ca = await readFile(path.join(process.cwd(), 'ca.crt.pem'));
 	if (opts.cert === undefined) opts.cert = await readFile(path.join(process.cwd(), os.hostname(), 'crt.pem'));
 	if (opts.key === undefined) opts.key = await readFile(path.join(process.cwd(), os.hostname(), 'key.pem'));
-	if (opts.runDir === undefined) opts.runDir = path.join(process.cwd(), os.hostname());
+	if (opts.autoRunDir === undefined) opts.autoRunDir = path.join(process.cwd(), os.hostname());
 
 	// Kick-off partybus
 	const bus = await partybus(opts);
 
 	// Create new instance of FTRM
-	const ftrm = new FTRM(bus);
+	const ftrm = new FTRM(bus, opts);
 
 	// Install listener to SIGINT and SIGTERM
 	if (!opts.noSignalListeners) {
@@ -107,7 +108,7 @@ module.exports = async (opts) => {
 	}
 
 	// Run dir if specified
-	if (opts.runDir) await ftrm.runDir(opts.runDir);
+	if (opts.autoRunDir) await ftrm.runDir(opts.autoRunDir);
 
 	return ftrm;
 };

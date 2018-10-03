@@ -27,7 +27,7 @@ Starts a new Footurama instance. Optional ```opts``` has the following propertie
  * ```ca```: The CA certificate for you Iot stuff. Default: ```${cwd}/ca.crt.pem```
  * ```cert```: The X509 certificate for the local instance. It must be signed by the CA. Default: ```${cwd}/${hostname}/crt.pem```
  * ```key```: The private key of the local instance. Default: ```${cwd}/${hostname}/key.pem```
- * ```runDir```: Automatically run all .js files in the given directory. Set to ```null``` if you don't want to run anything automatically. Default: ```${cwd}/${hostname}```
+ * ```autoRunDir```: Automatically run all .js files in the given directory. Set to ```null``` if you don't want to run anything automatically. Default: ```${cwd}/${hostname}```
  * ```noSignalListeners```: Set this to ```true``` if you don't want Footurama to listen to SIGTERM and SIGINT signals and shutdown all loaded components automatically.
 
 ## Method: ftrm.run()
