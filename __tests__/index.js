@@ -121,17 +121,30 @@ test(`Set index for input and output`, async () => {
 });
 
 test(`Run scripts in specified dir`, async () => {
-	fs.readdir.mockImplementationOnce((dir, cb) => cb(null, ['a.js', 'b.JS', 'c.json']));
+	fs.readdir.mockImplementationOnce((dir, cb) => cb(null, ['a.js', 'b.JS', 'c.js', 'c.json']));
 	const ftrm = await Ftrm({ runDir: null });
-	const a = [{ factory: jest.fn() }, {}];
+	const aFactory1 = jest.fn();
+	const a = jest.fn(() => [{ factory: aFactory1 }, {}]);
 	jest.doMock('/abc/a.js', () => a, {virtual: true});
-	const b = [{ factory: jest.fn() }, {}];
+	const bFactory1 = jest.fn();
+	const bFactory2 = jest.fn();
+	const b = jest.fn(() => Promise.resolve([
+		[{ factory: bFactory1 }, {}],
+		[{ factory: bFactory2 }, {}]
+	]));
 	jest.doMock('/abc/b.JS', () => b, {virtual: true});
+	const cFactory1 = jest.fn();
+	const c = [{ factory: cFactory1 }, {}];
+	jest.doMock('/abc/c.js', () => c, {virtual: true});
 	const ftrm2 = await ftrm.runDir('/abc');
-	expect(fs.readdir.mock.calls[0][0]).toEqual('/abc');
-	expect(a[0].factory.mock.calls.length).toBe(1);
-	expect(b[0].factory.mock.calls.length).toBe(1);
 	expect(ftrm2).toBe(ftrm);
+	expect(fs.readdir.mock.calls[0][0]).toEqual('/abc');
+	expect(a.mock.calls[0][0]).toBe(ftrm);
+	expect(b.mock.calls[0][0]).toBe(ftrm);
+	expect(aFactory1.mock.calls.length).toBe(1);
+	expect(bFactory1.mock.calls.length).toBe(1);
+	expect(bFactory2.mock.calls.length).toBe(1);
+	expect(cFactory1.mock.calls.length).toBe(1);
 });
 
 test(`Run all destroy methods`, async () => {

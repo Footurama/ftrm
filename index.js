@@ -57,11 +57,20 @@ class FTRM {
 
 	async runDir (dir) {
 		const files = await readdir(dir);
-		const instances = files
+		const modules = files
 			.filter((f) => f.toLowerCase().substr(-3) === '.js')
-			.map((f) => require(path.join(dir, f)))
-			.map((i) => this.run(i[0], i[1]));
-		await Promise.all(instances);
+			.map((f) => require(path.join(dir, f)));
+
+		for (let m of modules) {
+			if (typeof m === 'function') m = await m(this);
+			if (m instanceof Array) {
+				if (m[0] instanceof Array) {
+					for (let i of m) await this.run(i[0], i[1]);
+				} else {
+					await this.run(m[0], m[1]);
+				}
+			}
+		}
 
 		return this;
 	}
