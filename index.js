@@ -78,6 +78,7 @@ class FTRM {
 
 	async shutdown () {
 		await Promise.all(this._destroy.map((d) => d()));
+		await this._bus.realm.leave();
 	}
 }
 
