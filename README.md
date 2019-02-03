@@ -14,7 +14,7 @@ Under the hood this thing is driven by [Partybus](https://github.com/jue89/node-
 
 This section should give you an overview of the used terms and the relationships.
 
-The whole magic happens inside a *realm*. It groups all parts of your IoT application together. Inside the *realm* are your *nodes*. They are the computers (e.g. Raspberry Pi) that run the Footurama core. The core itself hosts several *components*. Every *component* can have several *inputs* and *outputs*. They are connected using *pipes* to exchange data. *pipes* reach across *node* boundaries. Thus data can travel from one component running on node A to another component running on component B.
+The whole magic happens inside a *realm*. It groups all parts of your IoT application together. Inside the *realm* are your *nodes*. They are the computers (e.g. Raspberry Pi) that run the Footurama core. The core itself hosts several *components*. Every *component* can have several *inputs* and *outputs*. They are connected using *pipes* to exchange data. *pipes* reach across *node* boundaries. Thus, data can travel from one component running on node A to another component running on node B seamlessly.
 
 # API for users
 
