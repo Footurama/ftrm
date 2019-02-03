@@ -64,6 +64,15 @@ test(`Load default client key`, async () => {
 	);
 });
 
+test(`Inherit options to instance`, async () => {
+	const testOpt = {};
+	const ftrm = await Ftrm({
+		autoRunDir: null,
+		testOpt
+	});
+	expect(ftrm.testOpt).toBe(testOpt);
+});
+
 test(`Call lib's check function`, async () => {
 	const ftrm = await Ftrm({});
 	const check = jest.fn();
@@ -121,17 +130,30 @@ test(`Set index for input and output`, async () => {
 });
 
 test(`Run scripts in specified dir`, async () => {
-	fs.readdir.mockImplementationOnce((dir, cb) => cb(null, ['a.js', 'b.JS', 'c.json']));
-	const ftrm = await Ftrm({ runDir: null });
-	const a = [{ factory: jest.fn() }, {}];
+	fs.readdir.mockImplementationOnce((dir, cb) => cb(null, ['a.js', 'b.JS', 'c.js', 'c.json']));
+	const ftrm = await Ftrm({ autoRunDir: null });
+	const aFactory1 = jest.fn();
+	const a = jest.fn(() => [{ factory: aFactory1 }, {}]);
 	jest.doMock('/abc/a.js', () => a, {virtual: true});
-	const b = [{ factory: jest.fn() }, {}];
+	const bFactory1 = jest.fn();
+	const bFactory2 = jest.fn();
+	const b = jest.fn(() => Promise.resolve([
+		[{ factory: bFactory1 }, {}],
+		[{ factory: bFactory2 }, {}]
+	]));
 	jest.doMock('/abc/b.JS', () => b, {virtual: true});
+	const cFactory1 = jest.fn();
+	const c = [{ factory: cFactory1 }, {}];
+	jest.doMock('/abc/c.js', () => c, {virtual: true});
 	const ftrm2 = await ftrm.runDir('/abc');
-	expect(fs.readdir.mock.calls[0][0]).toEqual('/abc');
-	expect(a[0].factory.mock.calls.length).toBe(1);
-	expect(b[0].factory.mock.calls.length).toBe(1);
 	expect(ftrm2).toBe(ftrm);
+	expect(fs.readdir.mock.calls[0][0]).toEqual('/abc');
+	expect(a.mock.calls[0][0]).toBe(ftrm);
+	expect(b.mock.calls[0][0]).toBe(ftrm);
+	expect(aFactory1.mock.calls.length).toBe(1);
+	expect(bFactory1.mock.calls.length).toBe(1);
+	expect(bFactory2.mock.calls.length).toBe(1);
+	expect(cFactory1.mock.calls.length).toBe(1);
 });
 
 test(`Run all destroy methods`, async () => {
@@ -142,20 +164,26 @@ test(`Run all destroy methods`, async () => {
 	expect(destroy.mock.calls.length).toBe(1);
 });
 
+test(`Leave tubemail realm on shutdown`, async () => {
+	const ftrm = await Ftrm({});
+	await ftrm.shutdown();
+	expect(partybus._bus.realm.leave.mock.calls.length).toBe(1);
+});
+
 test(`Set default runDir`, async () => {
 	const opts = {};
 	await Ftrm(opts);
-	expect(opts.runDir).toEqual(path.join(process.cwd(), os.hostname()));
+	expect(opts.autoRunDir).toEqual(path.join(process.cwd(), os.hostname()));
 });
 
 test(`Call runDir with specified option`, async () => {
-	const opts = { runDir: '/abc' };
+	const opts = { autoRunDir: '/abc' };
 	await Ftrm(opts);
-	expect(fs.readdir.mock.calls[0][0]).toEqual(opts.runDir);
+	expect(fs.readdir.mock.calls[0][0]).toEqual(opts.autoRunDir);
 });
 
 test(`Don't call runDir if option is null`, async () => {
-	const opts = { runDir: null };
+	const opts = { autoRunDir: null };
 	await Ftrm(opts);
 	expect(fs.readdir.mock.calls.length).toBe(0);
 });

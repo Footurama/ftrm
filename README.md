@@ -14,7 +14,7 @@ Under the hood this thing is driven by [Partybus](https://github.com/jue89/node-
 
 This section should give you an overview of the used terms and the relationships.
 
-The whole magic happens inside a *realm*. It groups all parts of your IoT application together. Inside the *realm* are your *nodes*. They are the computers (e.g. Raspberry Pi) that run the Footurama core. The core itself hosts several *components*. Every *component* can have several *inputs* and *outputs*. They are connected using *pipes* to exchange data. *pipes* reach across *node* boundaries. Thus data can travel from one component running on node A to another component running on component B.
+The whole magic happens inside a *realm*. It groups all parts of your IoT application together. Inside the *realm* are your *nodes*. They are the computers (e.g. Raspberry Pi) that run the Footurama core. The core itself hosts several *components*. Every *component* can have several *inputs* and *outputs*. They are connected using *pipes* to exchange data. *pipes* reach across *node* boundaries. Thus, data can travel from one component running on node A to another component running on node B seamlessly.
 
 # API for users
 
@@ -27,7 +27,7 @@ Starts a new Footurama instance. Optional ```opts``` has the following propertie
  * ```ca```: The CA certificate for you Iot stuff. Default: ```${cwd}/ca.crt.pem```
  * ```cert```: The X509 certificate for the local instance. It must be signed by the CA. Default: ```${cwd}/${hostname}/crt.pem```
  * ```key```: The private key of the local instance. Default: ```${cwd}/${hostname}/key.pem```
- * ```runDir```: Automatically run all .js files in the given directory. Set to ```null``` if you don't want to run anything automatically. Default: ```${cwd}/${hostname}```
+ * ```autoRunDir```: Automatically run all .js files in the given directory. Set to ```null``` if you don't want to run anything automatically. Default: ```${cwd}/${hostname}```
  * ```noSignalListeners```: Set this to ```true``` if you don't want Footurama to listen to SIGTERM and SIGINT signals and shutdown all loaded components automatically.
 
 ## Method: ftrm.run()
@@ -119,6 +119,8 @@ input[index].on('expire', () => {
 ### Argument: output
 
 The ```output``` object is derived from the normalised ```opts.output``` array. Every output can always be accessed by its index, like an array. The index corresponds to the respective item's index in ```opts.output```. If the ```name``` property of the output is set, it can also by accessed by ```output[name]```.
+
+The ```throttle``` property defines an interval in milliseconds. If the values is set multiple times within that interval and doesn't change, it will only be published once in the pipe. This feature may reduces noise in the system.
 
 If ```output[index].value``` is written, the value will be put on the specified ```pipe``` together with the current timestamp.
 
