@@ -27,6 +27,9 @@ class FTRM {
 		normalize(opts);
 		if (lib.check) await lib.check(opts);
 
+		// Abort if we are in dryRun mode
+		if (this.dryRun) return this;
+
 		// Create inputs and outputs
 		const input = {
 			length: opts.input.length,
@@ -92,7 +95,7 @@ module.exports = async (opts) => {
 	if (opts.autoRunDir === undefined) opts.autoRunDir = path.join(process.cwd(), os.hostname());
 
 	// Kick-off partybus
-	const bus = await partybus(opts);
+	const bus = opts.dryRun ? {} : await partybus(opts);
 
 	// Create new instance of FTRM
 	const ftrm = new FTRM(bus, opts);

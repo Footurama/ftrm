@@ -27,6 +27,11 @@ test(`Pass through options to partybus`, async () => {
 	expect(partybus.mock.calls[0][0]).toMatchObject(opts);
 });
 
+test(`Don't init partybus in dryRun mode`, async () => {
+	await Ftrm({dryRun: true});
+	expect(partybus.mock.calls.length).toBe(0);
+});
+
 test(`Use mdns by default`, async () => {
 	await Ftrm();
 	expect(partybus.mock.calls[0][0]).toMatchObject({
@@ -98,6 +103,15 @@ test(`Call lib's factory function`, async () => {
 	expect(Output.mock.calls[0][0]).toBe(opts.output[0]);
 	expect(Output.mock.calls[0][1]).toBe(partybus._bus);
 	expect(ftrm2).toBe(ftrm);
+});
+
+test(`Don't run lib's factory in dryRun mode`, async () => {
+	const ftrm = await Ftrm({dryRun: true});
+	const check = jest.fn();
+	const factory = jest.fn();
+	await ftrm.run({factory, check}, {});
+	expect(check.mock.calls.length).toBe(1);
+	expect(factory.mock.calls.length).toBe(0);
 });
 
 test(`Create iterator for inputs`, async () => {
