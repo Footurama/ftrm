@@ -81,14 +81,14 @@ class FTRM {
 
 	async shutdown () {
 		await Promise.all(this._destroy.map((d) => d()));
-		await this._bus.realm.leave();
+		await this._bus.hood.leave();
 	}
 }
 
 module.exports = async (opts) => {
 	// Some defaults
 	if (opts === undefined) opts = {};
-	if (opts.discovery === undefined) opts.discovery = require('tubemail-mdns')();
+	if (opts.discovery === undefined) opts.discovery = require('tubemail-mdns');
 	if (opts.ca === undefined) opts.ca = await readFile(path.join(process.cwd(), 'ca.crt.pem'));
 	if (opts.cert === undefined) opts.cert = await readFile(path.join(process.cwd(), os.hostname(), 'crt.pem'));
 	if (opts.key === undefined) opts.key = await readFile(path.join(process.cwd(), os.hostname(), 'key.pem'));
@@ -104,7 +104,7 @@ module.exports = async (opts) => {
 	if (!opts.noSignalListeners) {
 		const shutdown = async () => {
 			await ftrm.shutdown();
-			await bus.realm.leave();
+			await bus.hood.leave();
 			process.exit();
 		};
 		process.on('SIGINT', shutdown);

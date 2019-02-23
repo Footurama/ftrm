@@ -23,7 +23,7 @@
   "homepage": "https://github.com/Footurama/ftrm#readme",
   "devDependencies": {
     "happiness": "^10.0.2",
-    "jest": "^23.1.0"
+    "jest": "^24.1.0"
   },
   "happiness": {
     "globals": [
@@ -39,7 +39,7 @@
     "clearMocks": true
   },
   "dependencies": {
-    "partybus": "^1.1.0",
-    "tubemail-mdns": "^1.0.1"
+    "partybus": "git+https://github.com/jue89/node-partybus.git#482b60754a327f48668c7e6f61699d8108db779b",
+    "tubemail-mdns": "git+https://github.com/jue89/node-tubemail-mdns.git#f650f843932a8acb6bd7d7744859595dfc7a24c1"
   }
 }

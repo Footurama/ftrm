@@ -178,10 +178,10 @@ test(`Run all destroy methods`, async () => {
 	expect(destroy.mock.calls.length).toBe(1);
 });
 
-test(`Leave tubemail realm on shutdown`, async () => {
+test(`Leave tubemail hood on shutdown`, async () => {
 	const ftrm = await Ftrm({});
 	await ftrm.shutdown();
-	expect(partybus._bus.realm.leave.mock.calls.length).toBe(1);
+	expect(partybus._bus.hood.leave.mock.calls.length).toBe(1);
 });
 
 test(`Set default runDir`, async () => {
