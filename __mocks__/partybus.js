@@ -1,2 +1,2 @@
 module.exports = jest.fn(() => Promise.resolve(module.exports._bus));
-module.exports._bus = {realm: {leave: jest.fn()}};
+module.exports._bus = {hood: {leave: jest.fn()}};

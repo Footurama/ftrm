@@ -1,6 +1,6 @@
 {
   "name": "ftrm",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Footurama",
   "main": "index.js",
   "scripts": {
@@ -23,7 +23,7 @@
   "homepage": "https://github.com/Footurama/ftrm#readme",
   "devDependencies": {
     "happiness": "^10.0.2",
-    "jest": "^23.1.0"
+    "jest": "^24.1.0"
   },
   "happiness": {
     "globals": [
@@ -39,7 +39,7 @@
     "clearMocks": true
   },
   "dependencies": {
-    "partybus": "^1.1.0",
-    "tubemail-mdns": "^1.0.1"
+    "partybus": "^2.0.0",
+    "tubemail-mdns": "^2.0.0"
   }
 }

@@ -29,6 +29,7 @@ Starts a new Footurama instance. Optional ```opts``` has the following propertie
  * ```key```: The private key of the local instance. Default: ```${cwd}/${hostname}/key.pem```
  * ```autoRunDir```: Automatically run all .js files in the given directory. Set to ```null``` if you don't want to run anything automatically. Default: ```${cwd}/${hostname}```
  * ```noSignalListeners```: Set this to ```true``` if you don't want Footurama to listen to SIGTERM and SIGINT signals and shutdown all loaded components automatically.
+ * ```dryRun```: If set to ```true```, just options are checked and no nodes are actually started.
 
 ## Method: ftrm.run()
 
