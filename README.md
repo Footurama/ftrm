@@ -101,6 +101,8 @@ Every input holds the most recent value in ```input[index].value``` together wit
 
 If the input's property ```expire``` has been specified, received values will expire after the specified amount of milliseconds. If current expiration state can be accessed by reading ```input[index].expired```.
 
+If property ```default``` is given, the input's value is set to this value on start up and on expiration.
+
 Every input is an instance of the *EventEmitter*. Thus, they throw events:
 
 ```js
