@@ -123,6 +123,8 @@ The ```output``` object is derived from the normalised ```opts.output``` array. 
 
 The ```throttle``` property defines an interval in milliseconds. If the values is set multiple times within that interval and doesn't change, it will only be published once in the pipe. This feature may reduces noise in the system.
 
+The ```retransmit``` property defines an interval in milliseconds. If the values is not set within the given interval, the last value will be published again into the pipe.
+
 If ```output[index].value``` is written, the value will be put on the specified ```pipe``` together with the current timestamp. Alternatively, ```output[index].set(value, timestamp)``` can be called if setting the timestamp manually is required.
 
 ### Argument: bus

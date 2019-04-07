@@ -51,6 +51,7 @@ class FTRM {
 			o.index = n;
 			output[n] = o;
 			if (o.name) output[o.name] = o;
+			this._destroy.push(() => o._destroy());
 		});
 
 		// Run factory
