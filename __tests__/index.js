@@ -173,9 +173,10 @@ test(`Run scripts in specified dir`, async () => {
 test(`Run all destroy methods`, async () => {
 	const ftrm = await Ftrm({});
 	const destroy = jest.fn();
-	await ftrm.run({ factory: () => destroy }, {});
+	await ftrm.run({ factory: () => destroy }, { input: [{}] });
 	await ftrm.shutdown();
 	expect(destroy.mock.calls.length).toBe(1);
+	expect(Input.mock.instances[0]._destroy.mock.calls.length).toBe(1);
 });
 
 test(`Leave tubemail hood on shutdown`, async () => {

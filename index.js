@@ -40,6 +40,7 @@ class FTRM {
 			i.index = n;
 			input[n] = i;
 			if (i.name) input[i.name] = i;
+			this._destroy.push(() => i._destroy());
 		});
 		const output = {
 			length: opts.output.length,
