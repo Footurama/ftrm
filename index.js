@@ -97,24 +97,20 @@ module.exports = async (opts) => {
 	if (opts.autoRunDir === undefined) opts.autoRunDir = path.join(process.cwd(), os.hostname());
 
 	// Kick-off partybus
-	const bus = opts.dryRun ? {} : await partybus(opts);
+	const bus = opts.dryRun ? null : await partybus(opts);
 
 	// Create new instance of FTRM
 	const ftrm = new FTRM(bus, opts);
 
 	// Install listener to SIGINT and SIGTERM
 	if (!opts.noSignalListeners) {
-		const shutdown = async () => {
-			await ftrm.shutdown();
-			await bus.hood.leave();
-			process.exit();
-		};
+		const shutdown = () => ftrm.shutdown();
 		process.on('SIGINT', shutdown);
 		process.on('SIGTERM', shutdown);
 	}
 
 	// Run dir if specified
-	if (opts.autoRunDir) await ftrm.runDir(opts.autoRunDir);
+	if (opts.autoRunDir) await ftrm.runDir(opts.autoRunDir).catch(console.error);
 
 	return ftrm;
 };
