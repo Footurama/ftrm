@@ -226,3 +226,8 @@ test(`Suppress listing to SIGTERM and SIGINT`, async () => {
 	expect(process.listeners('SIGTERM').length - sigterm).toBe(0);
 	expect(process.listeners('SIGINT').length - sigint).toBe(0);
 });
+
+test(`Don't crash if FTRM is shut down in dry run mode`, async () => {
+	const ftrm = await Ftrm({ dryRun: true });
+	await ftrm.shutdown();
+});

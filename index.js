@@ -18,7 +18,9 @@ const readFile = (file) => new Promise((resolve, reject) => fs.readFile(file, (e
 class FTRM {
 	constructor (bus, opts) {
 		Object.assign(this, opts);
-		this._bus = bus;
+		if (bus) {
+			this.bus = bus;
+		}
 		this._destroy = [];
 	}
 
@@ -27,8 +29,8 @@ class FTRM {
 		normalize(opts);
 		if (lib.check) await lib.check(opts);
 
-		// Abort if we are in dryRun mode
-		if (this.dryRun) return this;
+		// Abort if no bus is attached (i.e. dry run)
+		if (!this.bus) return this;
 
 		// Create inputs and outputs
 		const input = {
@@ -83,7 +85,7 @@ class FTRM {
 
 	async shutdown () {
 		await Promise.all(this._destroy.map((d) => d()));
-		await this._bus.hood.leave();
+		if (this.bus) await this.bus.hood.leave();
 	}
 }
 
