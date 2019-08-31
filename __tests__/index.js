@@ -22,18 +22,18 @@ const Output = require('../lib/output.js');
 const Ftrm = require('..');
 
 test(`Pass through options to partybus`, async () => {
-	const opts = { a: true };
+	const opts = {a: true, noSignalListeners: true};
 	await Ftrm(opts);
 	expect(partybus.mock.calls[0][0]).toMatchObject(opts);
 });
 
 test(`Don't init partybus in dryRun mode`, async () => {
-	await Ftrm({dryRun: true});
+	await Ftrm({dryRun: true, noSignalListeners: true});
 	expect(partybus.mock.calls.length).toBe(0);
 });
 
 test(`Use mdns by default`, async () => {
-	await Ftrm();
+	await Ftrm({noSignalListeners: true});
 	expect(partybus.mock.calls[0][0]).toMatchObject({
 		discovery: tubemailMDNS._obj
 	});
@@ -42,7 +42,8 @@ test(`Use mdns by default`, async () => {
 test(`Load default CA certificate`, async () => {
 	await Ftrm({
 		cert: Buffer.alloc(0),
-		key: Buffer.alloc(0)
+		key: Buffer.alloc(0),
+		noSignalListeners: true
 	});
 	expect(fs.readFile.mock.calls[0][0]).toEqual(
 		path.join(process.cwd(), 'ca.crt.pem')
@@ -52,7 +53,8 @@ test(`Load default CA certificate`, async () => {
 test(`Load default client certificate`, async () => {
 	await Ftrm({
 		ca: Buffer.alloc(0),
-		key: Buffer.alloc(0)
+		key: Buffer.alloc(0),
+		noSignalListeners: true
 	});
 	expect(fs.readFile.mock.calls[0][0]).toEqual(
 		path.join(process.cwd(), os.hostname(), 'crt.pem')
@@ -62,7 +64,8 @@ test(`Load default client certificate`, async () => {
 test(`Load default client key`, async () => {
 	await Ftrm({
 		ca: Buffer.alloc(0),
-		cert: Buffer.alloc(0)
+		cert: Buffer.alloc(0),
+		noSignalListeners: true
 	});
 	expect(fs.readFile.mock.calls[0][0]).toEqual(
 		path.join(process.cwd(), os.hostname(), 'key.pem')
@@ -73,13 +76,14 @@ test(`Inherit options to instance`, async () => {
 	const testOpt = {};
 	const ftrm = await Ftrm({
 		autoRunDir: null,
-		testOpt
+		testOpt,
+		noSignalListeners: true
 	});
 	expect(ftrm.testOpt).toBe(testOpt);
 });
 
 test(`Call lib's check function`, async () => {
-	const ftrm = await Ftrm({});
+	const ftrm = await Ftrm({noSignalListeners: true});
 	const check = jest.fn();
 	const opts = {};
 	await ftrm.run({check, factory: () => {}}, opts);
@@ -88,7 +92,7 @@ test(`Call lib's check function`, async () => {
 });
 
 test(`Call lib's factory function`, async () => {
-	const ftrm = await Ftrm({});
+	const ftrm = await Ftrm({noSignalListeners: true});
 	const factory = jest.fn();
 	const opts = { input: [{name: 'a'}], output: [{name: 'b'}] };
 	const ftrm2 = await ftrm.run({factory}, opts);
@@ -106,7 +110,7 @@ test(`Call lib's factory function`, async () => {
 });
 
 test(`Don't run lib's factory in dryRun mode`, async () => {
-	const ftrm = await Ftrm({dryRun: true});
+	const ftrm = await Ftrm({dryRun: true, noSignalListeners: true});
 	const check = jest.fn();
 	const factory = jest.fn();
 	await ftrm.run({factory, check}, {});
@@ -115,7 +119,7 @@ test(`Don't run lib's factory in dryRun mode`, async () => {
 });
 
 test(`Create iterator for inputs`, async () => {
-	const ftrm = await Ftrm({});
+	const ftrm = await Ftrm({noSignalListeners: true});
 	const factory = jest.fn();
 	const opts = { input: [{name: 'a'}], output: [{name: 'b'}] };
 	await ftrm.run({factory}, opts);
@@ -125,7 +129,7 @@ test(`Create iterator for inputs`, async () => {
 });
 
 test(`Create iterator for outputs`, async () => {
-	const ftrm = await Ftrm({});
+	const ftrm = await Ftrm({noSignalListeners: true});
 	const factory = jest.fn();
 	const opts = { input: [{name: 'a'}], output: [{name: 'b'}] };
 	await ftrm.run({factory}, opts);
@@ -135,7 +139,7 @@ test(`Create iterator for outputs`, async () => {
 });
 
 test(`Set index for input and output`, async () => {
-	const ftrm = await Ftrm({});
+	const ftrm = await Ftrm({noSignalListeners: true});
 	const factory = jest.fn();
 	const opts = { input: [{name: 'a'}], output: [{name: 'b'}] };
 	await ftrm.run({factory}, opts);
@@ -145,7 +149,7 @@ test(`Set index for input and output`, async () => {
 
 test(`Run scripts in specified dir`, async () => {
 	fs.readdir.mockImplementationOnce((dir, cb) => cb(null, ['a.js', 'b.JS', 'c.js', 'c.json']));
-	const ftrm = await Ftrm({ autoRunDir: null });
+	const ftrm = await Ftrm({autoRunDir: null, noSignalListeners: true});
 	const aFactory1 = jest.fn();
 	const a = jest.fn(() => [{ factory: aFactory1 }, {}]);
 	jest.doMock('/abc/a.js', () => a, {virtual: true});
@@ -171,7 +175,7 @@ test(`Run scripts in specified dir`, async () => {
 });
 
 test(`Run all destroy methods`, async () => {
-	const ftrm = await Ftrm({});
+	const ftrm = await Ftrm({noSignalListeners: true});
 	const destroy = jest.fn();
 	await ftrm.run({
 		factory: () => destroy
@@ -186,25 +190,25 @@ test(`Run all destroy methods`, async () => {
 });
 
 test(`Leave tubemail hood on shutdown`, async () => {
-	const ftrm = await Ftrm({});
+	const ftrm = await Ftrm({noSignalListeners: true});
 	await ftrm.shutdown();
 	expect(partybus._bus.hood.leave.mock.calls.length).toBe(1);
 });
 
 test(`Set default runDir`, async () => {
-	const opts = {};
+	const opts = {noSignalListeners: true};
 	await Ftrm(opts);
 	expect(opts.autoRunDir).toEqual(path.join(process.cwd(), os.hostname()));
 });
 
 test(`Call runDir with specified option`, async () => {
-	const opts = { autoRunDir: '/abc' };
+	const opts = {autoRunDir: '/abc', noSignalListeners: true};
 	await Ftrm(opts);
 	expect(fs.readdir.mock.calls[0][0]).toEqual(opts.autoRunDir);
 });
 
 test(`Don't call runDir if option is null`, async () => {
-	const opts = { autoRunDir: null };
+	const opts = {autoRunDir: null, noSignalListeners: true};
 	await Ftrm(opts);
 	expect(fs.readdir.mock.calls.length).toBe(0);
 });
@@ -228,6 +232,6 @@ test(`Suppress listing to SIGTERM and SIGINT`, async () => {
 });
 
 test(`Don't crash if FTRM is shut down in dry run mode`, async () => {
-	const ftrm = await Ftrm({ dryRun: true });
+	const ftrm = await Ftrm({dryRun: true, noSignalListeners: true});
 	await ftrm.shutdown();
 });
