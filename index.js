@@ -7,6 +7,7 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const events = require('events');
+const colors = require('colors');
 
 const readdir = (dir) => new Promise((resolve, reject) => fs.readdir(dir, (err, files) => {
 	if (err) reject(err);
@@ -16,6 +17,25 @@ const readFile = (file) => new Promise((resolve, reject) => fs.readFile(file, (e
 	if (err) reject(err);
 	else resolve(data);
 }));
+
+// Default log to stream converter
+colors.setTheme({
+	info: 'gray',
+	warn: 'yellow',
+	error: 'red'
+});
+const logToStreamFactory = (color = false) => (o) => {
+	const fields = [];
+	fields.push(o.date.toISOString());
+	fields.push(o.nodeName + (o.componentName ? ':' + o.componentName : ''));
+	if (color) {
+		fields.push(o.level[o.level]);
+	} else {
+		fields.push(o.level);
+	}
+	fields.push(o.message);
+	return fields.join('\t') + '\n';
+};
 
 class FTRM extends events.EventEmitter {
 	constructor (bus, opts) {
@@ -40,40 +60,49 @@ class FTRM extends events.EventEmitter {
 			// to write on Writable streams.
 			const streams = {};
 			const formats = {};
-			const log = (obj) => {
+			const onLog = (obj) => {
 				if (!streams[obj.level]) return;
 				streams[obj.level].write(formats[obj.level](obj));
 			};
-			this.ipc.on('log', log);
+			this.ipc.on('log', onLog);
 			this.logStreams.forEach((l) => {
 				this.ipc.subscribe(l.addr);
 				streams[l.level] = l.stream;
 				formats[l.level] = l.format
 					? l.format
-					: (o) => `${o.date.toISOString()}\t${o.nodeName}:${o.componentName}\t${o.level}\t${o.message}\n`;
-				// TODO: Colors for TTY stdout
+					: logToStreamFactory(l.stream.isTTY);
 			});
+
+			// Wire events with streams
+			const log = this._logFactory();
+			this.on('nodeAdd', (n) => log.info(`Added node ${n.name}`, 'cd394adc98d44675a6ffa1349f152331'));
+			this.on('nodeRemove', (n) => log.info(`Removed node ${n.name}`, '2ef0df5540b04627bd3b2cc3fc3fb169'));
+			this.on('componentAdd', (l, o) => log.info(`Added component ${o.name}`, '2b504e9c2c404995bd5ebd8fbd9ec697'));
+			this.on('componentRemove', (l, o) => log.info(`Removed component ${o.name}`, '1dc5db6582fd4d778c6364ae547c93a6'));
 		}
 	}
 
 	_logFactory (opts) {
-		const send = (level, message) => {
-			const obj = {
-				level,
-				componentId: opts.id,
-				componentName: opts.name
-			};
+		const send = (level, message, msgid) => {
+			const obj = {level};
+			if (opts) {
+				obj.componentId = opts.id;
+				obj.componentName = opts.name;
+			}
 			if (message instanceof Error) {
 				obj.message = message.message;
 				obj.stack = message.stack;
 			} else {
 				obj.message = message;
 			}
+			if (msgid) {
+				obj.message_id = msgid;
+			}
 			this.ipc.send(`multicast.log.${this.id}.${level}`, 'log', obj);
 		};
-		const error = (msg) => send('error', msg);
-		const warn = (msg) => send('warn', msg);
-		const info = (msg) => send('info', msg);
+		const error = (msg, msgid) => send('error', msg, msgid);
+		const warn = (msg, msgid) => send('warn', msg, msgid);
+		const info = (msg, msgid) => send('info', msg, msgid);
 		return {error, warn, info};
 	}
 
@@ -146,6 +175,7 @@ class FTRM extends events.EventEmitter {
 			if (typeof c.destroy === 'function') jobs.push(c.destroy());
 			this.emit('componentRemove', c.lib, c.opts);
 		});
+		// Remove components
 		await Promise.all(jobs);
 		if (this.bus) await this.bus.hood.leave();
 	}

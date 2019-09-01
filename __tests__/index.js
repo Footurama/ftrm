@@ -310,9 +310,9 @@ describe(`Logging`, () => {
 		const err = new Error('abc');
 		log(err);
 		const sendCalls = mockIPC.mock.instances[0].send.mock.calls;
-		expect(sendCalls[0][0]).toEqual(`multicast.log.${ftrm.id}.${level}`);
-		expect(sendCalls[0][1]).toEqual(`log`);
-		expect(sendCalls[0][2]).toMatchObject({
+		expect(sendCalls[1][0]).toEqual(`multicast.log.${ftrm.id}.${level}`);
+		expect(sendCalls[1][1]).toEqual(`log`);
+		expect(sendCalls[1][2]).toMatchObject({
 			level,
 			componentId: opts.id,
 			componentName: opts.name,
@@ -321,9 +321,9 @@ describe(`Logging`, () => {
 		});
 		const msg = 'ert';
 		log(msg);
-		expect(sendCalls[1][0]).toEqual(`multicast.log.${ftrm.id}.${level}`);
-		expect(sendCalls[1][1]).toEqual(`log`);
-		expect(sendCalls[1][2]).toMatchObject({
+		expect(sendCalls[2][0]).toEqual(`multicast.log.${ftrm.id}.${level}`);
+		expect(sendCalls[2][1]).toEqual(`log`);
+		expect(sendCalls[2][2]).toMatchObject({
 			level,
 			componentId: opts.id,
 			componentName: opts.name,
@@ -380,5 +380,44 @@ describe(`Logging`, () => {
 		expect(write.mock.calls[0][0].toString()).toEqual(`${date.toISOString()}\t${nodeName}:${componentName}\t${level}\t${message}\n`);
 		listener({level: 'nope', nodeName, componentName, date, message});
 		expect(write.mock.calls.length).toBe(1);
+	});
+
+	test('wire events with log', async () => {
+		const ftrm = await Ftrm({noSignalListeners: true, logStreams: 'none'});
+		const name = 'abc';
+		const id = 'def';
+		const sendCalls = mockIPC.mock.instances[0].send.mock.calls;
+		ftrm.emit('nodeAdd', {name, id});
+		expect(sendCalls[0][0]).toEqual(`multicast.log.${ftrm.id}.info`);
+		expect(sendCalls[0][1]).toEqual(`log`);
+		expect(sendCalls[0][2]).toMatchObject({
+			message: `Added node ${name}`,
+			message_id: `cd394adc98d44675a6ffa1349f152331`,
+			level: `info`
+		});
+		ftrm.emit('nodeRemove', {name, id});
+		expect(sendCalls[1][0]).toEqual(`multicast.log.${ftrm.id}.info`);
+		expect(sendCalls[1][1]).toEqual(`log`);
+		expect(sendCalls[1][2]).toMatchObject({
+			message: `Removed node ${name}`,
+			message_id: `2ef0df5540b04627bd3b2cc3fc3fb169`,
+			level: `info`
+		});
+		ftrm.emit('componentAdd', {}, {name, id});
+		expect(sendCalls[2][0]).toEqual(`multicast.log.${ftrm.id}.info`);
+		expect(sendCalls[2][1]).toEqual(`log`);
+		expect(sendCalls[2][2]).toMatchObject({
+			message: `Added component ${name}`,
+			message_id: `2b504e9c2c404995bd5ebd8fbd9ec697`,
+			level: `info`
+		});
+		ftrm.emit('componentRemove', {}, {name, id});
+		expect(sendCalls[3][0]).toEqual(`multicast.log.${ftrm.id}.info`);
+		expect(sendCalls[3][1]).toEqual(`log`);
+		expect(sendCalls[3][2]).toMatchObject({
+			message: `Removed component ${name}`,
+			message_id: `1dc5db6582fd4d778c6364ae547c93a6`,
+			level: `info`
+		});
 	});
 });
