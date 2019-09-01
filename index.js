@@ -35,6 +35,25 @@ class FTRM extends events.EventEmitter {
 				name: n.info.subject.commonName
 			}));
 		}
+		if (this.ipc) {
+			// Setup log streams which translates IPC log messages
+			// to write on Writable streams.
+			const streams = {};
+			const formats = {};
+			const log = (obj) => {
+				if (!streams[obj.level]) return;
+				streams[obj.level].write(formats[obj.level](obj));
+			};
+			this.ipc.on('log', log);
+			this.logStreams.forEach((l) => {
+				this.ipc.subscribe(l.addr);
+				streams[l.level] = l.stream;
+				formats[l.level] = l.format
+					? l.format
+					: (o) => `${o.date.toISOString()}\t${o.nodeName}:${o.componentName}\t${o.level}\t${o.message}\n`;
+				// TODO: Colors for TTY stdout
+			});
+		}
 	}
 
 	_logFactory (opts) {
@@ -143,6 +162,28 @@ module.exports = async (opts) => {
 
 	// Kick-off partybus
 	const bus = opts.dryRun ? null : await partybus(opts);
+
+	// Set default log streams
+	if (bus) {
+		if (opts.logStreams === undefined) opts.logStreams = 'local';
+		if (typeof opts.logStreams === 'string') {
+			if (opts.logStreams === 'global') {
+				opts.logStreams = [
+					{level: 'error', addr: `multicast.log.+.error`, stream: process.stdout},
+					{level: 'warn', addr: `multicast.log.+.warn`, stream: process.stdout},
+					{level: 'info', addr: `multicast.log.+.info`, stream: process.stdout}
+				];
+			} else if (opts.logStreams === 'none') {
+				opts.logStreams = [];
+			} else {
+				opts.logStreams = [
+					{level: 'error', addr: `multicast.log.${bus.hood.id}.error`, stream: process.stdout},
+					{level: 'warn', addr: `multicast.log.${bus.hood.id}.warn`, stream: process.stdout},
+					{level: 'info', addr: `multicast.log.${bus.hood.id}.info`, stream: process.stdout}
+				];
+			}
+		}
+	}
 
 	// Create new instance of FTRM
 	const ftrm = new FTRM(bus, opts);

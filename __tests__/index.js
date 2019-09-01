@@ -1,5 +1,6 @@
 const path = require('path');
 const os = require('os');
+const stream = require('stream');
 
 jest.mock('partybus');
 const mockPartybus = require('partybus');
@@ -335,4 +336,49 @@ describe(`Logging`, () => {
 		expect(mockOutput.mock.instances[0]).toBe(o);
 		expect(mockOutput.mock.calls[0][2]).toBe(logger);
 	}));
+
+	test('set default log streams', async () => {
+		const opts = {noSignalListeners: true};
+		await Ftrm(opts);
+		['error', 'warn', 'info'].forEach((level, n) => {
+			expect(opts.logStreams[n].level).toEqual(level);
+			expect(opts.logStreams[n].addr).toEqual(`multicast.log.${mockPartybus._bus.hood.id}.${level}`);
+			expect(opts.logStreams[n].stream).toBe(process.stdout);
+		});
+	});
+
+	test('disable log streams', async () => {
+		const opts = {noSignalListeners: true, logStreams: 'none'};
+		await Ftrm(opts);
+		expect(opts.logStreams).toMatchObject([]);
+	});
+
+	test('set global logging', async () => {
+		const opts = {noSignalListeners: true, logStreams: 'global'};
+		await Ftrm(opts);
+		['error', 'warn', 'info'].forEach((level, n) => {
+			expect(opts.logStreams[n].level).toEqual(level);
+			expect(opts.logStreams[n].addr).toEqual(`multicast.log.+.${level}`);
+			expect(opts.logStreams[n].stream).toBe(process.stdout);
+		});
+	});
+
+	test('register log streams', async () => {
+		const write = jest.fn((c, e, done) => done());
+		const s = new stream.Writable({write});
+		const logStream = {level: 'error', addr: 'abc', stream: s};
+		const opts = {noSignalListeners: true, logStreams: [logStream]};
+		await Ftrm(opts);
+		expect(mockIPC.mock.instances[0].subscribe.mock.calls[0][0]).toBe(logStream.addr);
+		const listener = mockIPC.mock.instances[0]._listener['log'];
+		const level = logStream.level;
+		const nodeName = 'abc';
+		const componentName = 'def';
+		const date = new Date();
+		const message = 'qwertz';
+		listener({level, nodeName, componentName, date, message});
+		expect(write.mock.calls[0][0].toString()).toEqual(`${date.toISOString()}\t${nodeName}:${componentName}\t${level}\t${message}\n`);
+		listener({level: 'nope', nodeName, componentName, date, message});
+		expect(write.mock.calls.length).toBe(1);
+	});
 });
