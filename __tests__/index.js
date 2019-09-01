@@ -19,6 +19,9 @@ const mockInput = require('../lib/input.js');
 jest.mock('../lib/output.js');
 const mockOutput = require('../lib/output.js');
 
+jest.mock('../lib/ipc.js');
+const mockIPC = require('../lib/ipc.js');
+
 const Ftrm = require('..');
 
 describe(`Init`, () => {
@@ -122,6 +125,12 @@ describe(`Init`, () => {
 });
 
 describe(`FTRM startup`, () => {
+	test(`Store partybus id and name in main object`, async () => {
+		const ftrm = await Ftrm({noSignalListeners: true});
+		expect(ftrm.name).toBe(mockPartybus._bus.hood.info.subject.commonName);
+		expect(ftrm.id).toBe(mockPartybus._bus.hood.id);
+	});
+
 	test(`Call lib's check function`, async () => {
 		const ftrm = await Ftrm({noSignalListeners: true});
 		const check = jest.fn();
@@ -141,7 +150,6 @@ describe(`FTRM startup`, () => {
 		expect(factory.mock.calls[0][1]['a']).toBe(factory.mock.calls[0][1]['a']);
 		expect(factory.mock.calls[0][2][0]).toBeInstanceOf(mockOutput);
 		expect(factory.mock.calls[0][2]['b']).toBe(factory.mock.calls[0][2][0]);
-		expect(factory.mock.calls[0][3]).toBe(mockPartybus._bus);
 		expect(mockInput.mock.calls[0][0]).toBe(opts.input[0]);
 		expect(mockInput.mock.calls[0][1]).toBe(mockPartybus._bus);
 		expect(mockOutput.mock.calls[0][0]).toBe(opts.output[0]);
@@ -243,20 +251,50 @@ describe(`FTRM shutdown`, () => {
 	});
 });
 
-/* test(`Store partybus id in main object`, () => {
-	const ftrm = await Ftrm({noSignalListeners: true});
-});
-
 describe(`Logging`, () => {
-	test(`Create IPC instance`, () => {
-
-	});
-
 	[
 		'info',
 		'warn',
 		'error'
-	].forEach((level) => test(`Expose create logger for level ${level}`, () => {
-
+	].forEach((level) => test(`Create logger for level ${level}`, async () => {
+		const ftrm = await Ftrm({noSignalListeners: true});
+		const lib = {factory: jest.fn()};
+		const opts = {
+			id: 'abcedf',
+			name: 'TestInstance',
+			input: [{name: 'a'}],
+			output: [{name: 'b'}]
+		};
+		await ftrm.run(lib, opts);
+		const logger = lib.factory.mock.calls[0][3];
+		const log = logger[level];
+		const err = new Error('abc');
+		log(err);
+		const sendCalls = mockIPC.mock.instances[0].send.mock.calls;
+		expect(sendCalls[0][0]).toEqual(`multicast.log.${ftrm.id}.${level}`);
+		expect(sendCalls[0][1]).toEqual(`log`);
+		expect(sendCalls[0][2]).toMatchObject({
+			level,
+			componentId: opts.id,
+			componentName: opts.name,
+			message: err.message,
+			stack: err.stack
+		});
+		const msg = 'ert';
+		log(msg);
+		expect(sendCalls[1][0]).toEqual(`multicast.log.${ftrm.id}.${level}`);
+		expect(sendCalls[1][1]).toEqual(`log`);
+		expect(sendCalls[1][2]).toMatchObject({
+			level,
+			componentId: opts.id,
+			componentName: opts.name,
+			message: msg
+		});
+		const i = lib.factory.mock.calls[0][1][0];
+		expect(mockInput.mock.instances[0]).toBe(i);
+		expect(mockInput.mock.calls[0][2]).toBe(logger);
+		const o = lib.factory.mock.calls[0][2][0];
+		expect(mockOutput.mock.instances[0]).toBe(o);
+		expect(mockOutput.mock.calls[0][2]).toBe(logger);
 	}));
-}); */
+});

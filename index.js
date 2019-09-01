@@ -2,6 +2,7 @@ const partybus = require('partybus');
 const normalize = require('./lib/normalize-config.js');
 const Input = require('./lib/input.js');
 const Output = require('./lib/output.js');
+const IPC = require('./lib/ipc.js');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
@@ -20,8 +21,32 @@ class FTRM {
 		Object.assign(this, opts);
 		if (bus) {
 			this.bus = bus;
+			this.id = bus.hood.id;
+			this.name = bus.hood.info.subject.commonName;
+			this.ipc = new IPC(bus);
 		}
 		this._destroy = [];
+	}
+
+	_logFactory (opts) {
+		const send = (level, message) => {
+			const obj = {
+				level,
+				componentId: opts.id,
+				componentName: opts.name
+			};
+			if (message instanceof Error) {
+				obj.message = message.message;
+				obj.stack = message.stack;
+			} else {
+				obj.message = message;
+			}
+			this.ipc.send(`multicast.log.${this.id}.${level}`, 'log', obj);
+		};
+		const error = (msg) => send('error', msg);
+		const warn = (msg) => send('warn', msg);
+		const info = (msg) => send('info', msg);
+		return {error, warn, info};
 	}
 
 	async run (lib, opts) {
@@ -32,13 +57,16 @@ class FTRM {
 		// Abort if no bus is attached (i.e. dry run)
 		if (!this.bus) return this;
 
+		// Create new logger
+		const log = this._logFactory(opts);
+
 		// Create inputs and outputs
 		const input = {
 			length: opts.input.length,
 			entries: () => Array.from(input)
 		};
 		opts.input.forEach((i, n) => {
-			i = new Input(i, this._bus);
+			i = new Input(i, this.bus, log);
 			i.index = n;
 			input[n] = i;
 			if (i.name) input[i.name] = i;
@@ -49,7 +77,7 @@ class FTRM {
 			entries: () => Array.from(output)
 		};
 		opts.output.forEach((o, n) => {
-			o = new Output(o, this._bus);
+			o = new Output(o, this.bus, log);
 			o.index = n;
 			output[n] = o;
 			if (o.name) output[o.name] = o;
@@ -57,7 +85,7 @@ class FTRM {
 		});
 
 		// Run factory
-		const destroy = await lib.factory(opts, input, output, this._bus);
+		const destroy = await lib.factory(opts, input, output, log, this);
 		if (typeof destroy === 'function') this._destroy.push(destroy);
 
 		return this;
