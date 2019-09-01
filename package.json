@@ -23,7 +23,8 @@
   "homepage": "https://github.com/Footurama/ftrm#readme",
   "devDependencies": {
     "happiness": "^10.0.2",
-    "jest": "^24.9.0"
+    "jest": "^24.9.0",
+    "pre-commit": "^1.2.2"
   },
   "happiness": {
     "globals": [
@@ -41,5 +42,8 @@
   "dependencies": {
     "partybus": "^2.0.0",
     "tubemail-mdns": "^2.0.0"
-  }
+  },
+  "pre-commit": [
+    "test"
+  ]
 }
