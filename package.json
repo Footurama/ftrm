@@ -40,7 +40,7 @@
     "clearMocks": true
   },
   "dependencies": {
-    "partybus": "^2.0.0",
+    "partybus": "git+https://github.com/jue89/node-partybus.git#aa73976daeae4de993f39a15537643de4210c92f",
     "tubemail-mdns": "^2.0.0"
   },
   "pre-commit": [
