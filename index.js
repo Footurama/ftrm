@@ -21,6 +21,7 @@ class FTRM extends events.EventEmitter {
 	constructor (bus, opts) {
 		super();
 		Object.assign(this, opts);
+		this.components = [];
 		if (bus) {
 			this.bus = bus;
 			this.id = bus.hood.id;
@@ -34,7 +35,6 @@ class FTRM extends events.EventEmitter {
 				name: n.info.subject.commonName
 			}));
 		}
-		this._destroy = [];
 	}
 
 	_logFactory (opts) {
@@ -79,7 +79,6 @@ class FTRM extends events.EventEmitter {
 			i.index = n;
 			input[n] = i;
 			if (i.name) input[i.name] = i;
-			this._destroy.push(() => i._destroy());
 		});
 		const output = {
 			length: opts.output.length,
@@ -90,12 +89,12 @@ class FTRM extends events.EventEmitter {
 			o.index = n;
 			output[n] = o;
 			if (o.name) output[o.name] = o;
-			this._destroy.push(() => o._destroy());
 		});
 
 		// Run factory
 		const destroy = await lib.factory(opts, input, output, log, this);
-		if (typeof destroy === 'function') this._destroy.push(destroy);
+		this.components.push({lib, opts, input, output, destroy});
+		this.emit('componentAdd', lib, opts);
 
 		return this;
 	}
@@ -121,7 +120,14 @@ class FTRM extends events.EventEmitter {
 	}
 
 	async shutdown () {
-		await Promise.all(this._destroy.map((d) => d()));
+		const jobs = [];
+		this.components.forEach((c) => {
+			c.input.entries().forEach((i) => jobs.push(i._destroy()));
+			c.output.entries().forEach((o) => jobs.push(o._destroy()));
+			if (typeof c.destroy === 'function') jobs.push(c.destroy());
+			this.emit('componentRemove', c.lib, c.opts);
+		});
+		await Promise.all(jobs);
 		if (this.bus) await this.bus.hood.leave();
 	}
 }

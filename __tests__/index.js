@@ -172,18 +172,22 @@ describe(`FTRM startup`, () => {
 
 	test(`Call lib's factory function`, async () => {
 		const ftrm = await Ftrm({noSignalListeners: true});
-		const factory = jest.fn();
+		const onComponentAdd = jest.fn();
+		ftrm.on('componentAdd', onComponentAdd);
+		const lib = {factory: jest.fn()};
 		const opts = { input: [{name: 'a'}], output: [{name: 'b'}] };
-		const ftrm2 = await ftrm.run({factory}, opts);
-		expect(factory.mock.calls[0][0]).toBe(opts);
-		expect(factory.mock.calls[0][1][0]).toBeInstanceOf(mockInput);
-		expect(factory.mock.calls[0][1]['a']).toBe(factory.mock.calls[0][1]['a']);
-		expect(factory.mock.calls[0][2][0]).toBeInstanceOf(mockOutput);
-		expect(factory.mock.calls[0][2]['b']).toBe(factory.mock.calls[0][2][0]);
+		const ftrm2 = await ftrm.run(lib, opts);
+		expect(lib.factory.mock.calls[0][0]).toBe(opts);
+		expect(lib.factory.mock.calls[0][1][0]).toBeInstanceOf(mockInput);
+		expect(lib.factory.mock.calls[0][1]['a']).toBe(lib.factory.mock.calls[0][1][0]);
+		expect(lib.factory.mock.calls[0][2][0]).toBeInstanceOf(mockOutput);
+		expect(lib.factory.mock.calls[0][2]['b']).toBe(lib.factory.mock.calls[0][2][0]);
 		expect(mockInput.mock.calls[0][0]).toBe(opts.input[0]);
 		expect(mockInput.mock.calls[0][1]).toBe(mockPartybus._bus);
 		expect(mockOutput.mock.calls[0][0]).toBe(opts.output[0]);
 		expect(mockOutput.mock.calls[0][1]).toBe(mockPartybus._bus);
+		expect(onComponentAdd.mock.calls[0][0]).toBe(lib);
+		expect(onComponentAdd.mock.calls[0][1]).toBe(opts);
 		expect(ftrm2).toBe(ftrm);
 	});
 
@@ -256,17 +260,21 @@ describe(`FTRM startup`, () => {
 describe(`FTRM shutdown`, () => {
 	test(`Run all destroy methods`, async () => {
 		const ftrm = await Ftrm({noSignalListeners: true});
+		const onComponentRemove = jest.fn();
+		ftrm.on('componentRemove', onComponentRemove);
 		const destroy = jest.fn();
-		await ftrm.run({
-			factory: () => destroy
-		}, {
+		const lib = {factory: () => destroy};
+		const opts = {
 			input: [{}],
 			output: [{}]
-		});
+		};
+		await ftrm.run(lib, opts);
 		await ftrm.shutdown();
 		expect(destroy.mock.calls.length).toBe(1);
 		expect(mockInput.mock.instances[0]._destroy.mock.calls.length).toBe(1);
 		expect(mockOutput.mock.instances[0]._destroy.mock.calls.length).toBe(1);
+		expect(onComponentRemove.mock.calls[0][0]).toBe(lib);
+		expect(onComponentRemove.mock.calls[0][1]).toBe(opts);
 	});
 
 	test(`Leave tubemail hood on shutdown`, async () => {
