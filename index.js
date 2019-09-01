@@ -6,6 +6,7 @@ const IPC = require('./lib/ipc.js');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
+const events = require('events');
 
 const readdir = (dir) => new Promise((resolve, reject) => fs.readdir(dir, (err, files) => {
 	if (err) reject(err);
@@ -16,14 +17,22 @@ const readFile = (file) => new Promise((resolve, reject) => fs.readFile(file, (e
 	else resolve(data);
 }));
 
-class FTRM {
+class FTRM extends events.EventEmitter {
 	constructor (bus, opts) {
+		super();
 		Object.assign(this, opts);
 		if (bus) {
 			this.bus = bus;
 			this.id = bus.hood.id;
 			this.name = bus.hood.info.subject.commonName;
 			this.ipc = new IPC(bus);
+			this.bus.hood.on('foundNeigh', (n) => this.emit('nodeAdd', {
+				id: n.id,
+				name: n.info.subject.commonName
+			})).on('lostNeigh', (n) => this.emit('nodeRemove', {
+				id: n.id,
+				name: n.info.subject.commonName
+			}));
 		}
 		this._destroy = [];
 	}
@@ -141,7 +150,6 @@ module.exports = async (opts) => {
 		process.on('SIGINT', shutdown);
 		process.on('SIGTERM', shutdown);
 	}
-
 
 	return ftrm;
 };

@@ -131,6 +131,36 @@ describe(`FTRM startup`, () => {
 		expect(ftrm.id).toBe(mockPartybus._bus.hood.id);
 	});
 
+	test(`Emit nodeAdd event`, async () => {
+		const ftrm = await Ftrm({noSignalListeners: true});
+		const onNodeAdd = jest.fn();
+		ftrm.on('nodeAdd', onNodeAdd);
+		const neigh = {
+			id: 'abc',
+			info: {subject: {commonName: 'def'}}
+		};
+		mockPartybus._bus.hood.emit('foundNeigh', neigh);
+		expect(onNodeAdd.mock.calls[0][0]).toMatchObject({
+			id: neigh.id,
+			name: neigh.info.subject.commonName
+		});
+	});
+
+	test(`Emit nodeRemove event`, async () => {
+		const ftrm = await Ftrm({noSignalListeners: true});
+		const onNodeRemove = jest.fn();
+		ftrm.on('nodeRemove', onNodeRemove);
+		const neigh = {
+			id: 'abc',
+			info: {subject: {commonName: 'def'}}
+		};
+		mockPartybus._bus.hood.emit('lostNeigh', neigh);
+		expect(onNodeRemove.mock.calls[0][0]).toMatchObject({
+			id: neigh.id,
+			name: neigh.info.subject.commonName
+		});
+	});
+
 	test(`Call lib's check function`, async () => {
 		const ftrm = await Ftrm({noSignalListeners: true});
 		const check = jest.fn();
