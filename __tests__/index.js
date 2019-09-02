@@ -1,6 +1,5 @@
 const path = require('path');
 const os = require('os');
-const stream = require('stream');
 
 jest.mock('partybus');
 const mockPartybus = require('partybus');
@@ -10,6 +9,9 @@ const mockTubemailMdns = require('tubemail-mdns');
 
 jest.mock('fs');
 const mockFs = require('fs');
+
+jest.mock('systemd-journald');
+const mockJournal = require('systemd-journald');
 
 jest.mock('../lib/normalize-config.js');
 const mockNormalize = require('../lib/normalize-config.js');
@@ -337,53 +339,71 @@ describe(`Logging`, () => {
 		expect(mockOutput.mock.calls[0][2]).toBe(logger);
 	}));
 
-	test('set default log streams', async () => {
+	test('set default loggin', async () => {
 		const opts = {noSignalListeners: true};
 		await Ftrm(opts);
 		['error', 'warn', 'info'].forEach((level, n) => {
-			expect(opts.logStreams[n].level).toEqual(level);
-			expect(opts.logStreams[n].addr).toEqual(`multicast.log.${mockPartybus._bus.hood.id}.${level}`);
-			expect(opts.logStreams[n].stream).toBe(process.stdout);
+			expect(opts.log[n].level).toEqual(level);
+			expect(opts.log[n].addr).toEqual(`multicast.log.${mockPartybus._bus.hood.id}.${level}`);
 		});
 	});
 
-	test('disable log streams', async () => {
-		const opts = {noSignalListeners: true, logStreams: 'none'};
+	test('disable logging', async () => {
+		const opts = {noSignalListeners: true, log: 'none'};
 		await Ftrm(opts);
-		expect(opts.logStreams).toMatchObject([]);
+		expect(opts.log).toMatchObject([]);
 	});
 
-	test('set global logging', async () => {
-		const opts = {noSignalListeners: true, logStreams: 'global'};
+	test('set global logging to stdout', async () => {
+		const opts = {noSignalListeners: true, log: 'global-stdout'};
 		await Ftrm(opts);
 		['error', 'warn', 'info'].forEach((level, n) => {
-			expect(opts.logStreams[n].level).toEqual(level);
-			expect(opts.logStreams[n].addr).toEqual(`multicast.log.+.${level}`);
-			expect(opts.logStreams[n].stream).toBe(process.stdout);
+			expect(opts.log[n].level).toEqual(level);
+			expect(opts.log[n].addr).toEqual(`multicast.log.+.${level}`);
 		});
 	});
 
-	test('register log streams', async () => {
-		const write = jest.fn((c, e, done) => done());
-		const s = new stream.Writable({write});
-		const logStream = {level: 'error', addr: 'abc', stream: s};
-		const opts = {noSignalListeners: true, logStreams: [logStream]};
+	test('set systemd-journald as logger', async () => {
+		const opts = {noSignalListeners: true, log: 'local-journal'};
+		const ftrm = await Ftrm(opts);
+		const j = mockJournal.mock.instances[0];
+		const nodeName = 'a';
+		const componentName = 'b';
+		const message = 'c';
+		const objError = {level: 'error', nodeName, componentName, message};
+		ftrm.ipc._listener['log'](objError);
+		expect(j.err.mock.calls[0][0]).toEqual(`${nodeName}:${componentName}\t${message}`);
+		expect(j.err.mock.calls[0][1]).toBe(objError);
+		const objWarn = {level: 'warn', nodeName, componentName, message};
+		ftrm.ipc._listener['log'](objWarn);
+		expect(j.warn.mock.calls[0][0]).toEqual(`${nodeName}:${componentName}\t${message}`);
+		expect(j.warn.mock.calls[0][1]).toBe(objWarn);
+		const objInfo = {level: 'info', nodeName, componentName, message};
+		ftrm.ipc._listener['log'](objInfo);
+		expect(j.info.mock.calls[0][0]).toEqual(`${nodeName}:${componentName}\t${message}`);
+		expect(j.info.mock.calls[0][1]).toBe(objInfo);
+	});
+
+	test('register log callback', async () => {
+		const fn = jest.fn();
+		const l = {level: 'error', addr: 'abc', fn};
+		const opts = {noSignalListeners: true, log: [l]};
 		await Ftrm(opts);
-		expect(mockIPC.mock.instances[0].subscribe.mock.calls[0][0]).toBe(logStream.addr);
+		expect(mockIPC.mock.instances[0].subscribe.mock.calls[0][0]).toBe(l.addr);
 		const listener = mockIPC.mock.instances[0]._listener['log'];
-		const level = logStream.level;
+		const level = l.level;
 		const nodeName = 'abc';
 		const componentName = 'def';
 		const date = new Date();
 		const message = 'qwertz';
 		listener({level, nodeName, componentName, date, message});
-		expect(write.mock.calls[0][0].toString()).toEqual(`${date.toISOString()}\t${nodeName}:${componentName}\t${level}\t${message}\n`);
+		expect(fn.mock.calls[0][0]).toMatchObject({nodeName, componentName, date, level, message});
 		listener({level: 'nope', nodeName, componentName, date, message});
-		expect(write.mock.calls.length).toBe(1);
+		expect(fn.mock.calls.length).toBe(1);
 	});
 
 	test('wire events with log', async () => {
-		const ftrm = await Ftrm({noSignalListeners: true, logStreams: 'none'});
+		const ftrm = await Ftrm({noSignalListeners: true, log: 'none'});
 		const name = 'abc';
 		const id = 'def';
 		const sendCalls = mockIPC.mock.instances[0].send.mock.calls;

@@ -44,6 +44,9 @@
     "partybus": "git+https://github.com/jue89/node-partybus.git#aa73976daeae4de993f39a15537643de4210c92f",
     "tubemail-mdns": "^2.0.0"
   },
+  "optionalDependencies": {
+    "systemd-journald": "^1.5.1"
+  },
   "pre-commit": [
     "test"
   ]

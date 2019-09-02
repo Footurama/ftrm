@@ -24,17 +24,13 @@ colors.setTheme({
 	warn: 'yellow',
 	error: 'red'
 });
-const logToStreamFactory = (color = false) => (o) => {
+const logToStringFactory = (type, log) => (o) => {
 	const fields = [];
-	fields.push(o.date.toISOString());
+	if (type === 'tty') fields.push(o.date.toISOString());
 	fields.push(o.nodeName + (o.componentName ? ':' + o.componentName : ''));
-	if (color) {
-		fields.push(o.level[o.level]);
-	} else {
-		fields.push(o.level);
-	}
+	if (type !== 'journal') fields.push((type === 'tty') ? o.level[o.level] : o.level);
 	fields.push(o.message);
-	return fields.join('\t') + '\n';
+	log(fields.join('\t'), o);
 };
 
 class FTRM extends events.EventEmitter {
@@ -58,19 +54,14 @@ class FTRM extends events.EventEmitter {
 		if (this.ipc) {
 			// Setup log streams which translates IPC log messages
 			// to write on Writable streams.
-			const streams = {};
-			const formats = {};
+			const fns = {};
 			const onLog = (obj) => {
-				if (!streams[obj.level]) return;
-				streams[obj.level].write(formats[obj.level](obj));
+				if (fns[obj.level]) fns[obj.level](obj);
 			};
 			this.ipc.on('log', onLog);
-			this.logStreams.forEach((l) => {
+			this.log.forEach((l) => {
 				this.ipc.subscribe(l.addr);
-				streams[l.level] = l.stream;
-				formats[l.level] = l.format
-					? l.format
-					: logToStreamFactory(l.stream.isTTY);
+				fns[l.level] = l.fn;
 			});
 
 			// Wire events with streams
@@ -195,21 +186,40 @@ module.exports = async (opts) => {
 
 	// Set default log streams
 	if (bus) {
-		if (opts.logStreams === undefined) opts.logStreams = 'local';
-		if (typeof opts.logStreams === 'string') {
-			if (opts.logStreams === 'global') {
-				opts.logStreams = [
-					{level: 'error', addr: `multicast.log.+.error`, stream: process.stdout},
-					{level: 'warn', addr: `multicast.log.+.warn`, stream: process.stdout},
-					{level: 'info', addr: `multicast.log.+.info`, stream: process.stdout}
+		if (opts.log === undefined) opts.log = 'local-stdout';
+		if (typeof opts.log === 'string') {
+			let [scope, logger] = opts.log.split('-');
+
+			// Get log function
+			let fnError = () => {};
+			let fnWarn = () => {};
+			let fnInfo = () => {};
+			if (logger === 'stdout') {
+				const fn = logToStringFactory(process.stdout.isTTY ? 'tty' : 'stream', (l) => process.stdout.write(`${l}\n`));
+				fnError = fn;
+				fnWarn = fn;
+				fnInfo = fn;
+			} else if (logger === 'journal') {
+				const Journal = require('systemd-journald');
+				const log = new Journal({syslog_identifier: 'ftrm'});
+				fnError = logToStringFactory('journal', log.err);
+				fnWarn = logToStringFactory('journal', log.warn);
+				fnInfo = logToStringFactory('journal', log.info);
+			}
+
+			if (scope === 'global') {
+				opts.log = [
+					{level: 'error', addr: `multicast.log.+.error`, fn: fnError},
+					{level: 'warn', addr: `multicast.log.+.warn`, fn: fnWarn},
+					{level: 'info', addr: `multicast.log.+.info`, fn: fnInfo}
 				];
-			} else if (opts.logStreams === 'none') {
-				opts.logStreams = [];
+			} else if (scope === 'none') {
+				opts.log = [];
 			} else {
-				opts.logStreams = [
-					{level: 'error', addr: `multicast.log.${bus.hood.id}.error`, stream: process.stdout},
-					{level: 'warn', addr: `multicast.log.${bus.hood.id}.warn`, stream: process.stdout},
-					{level: 'info', addr: `multicast.log.${bus.hood.id}.info`, stream: process.stdout}
+				opts.log = [
+					{level: 'error', addr: `multicast.log.${bus.hood.id}.error`, fn: fnError},
+					{level: 'warn', addr: `multicast.log.${bus.hood.id}.warn`, fn: fnWarn},
+					{level: 'info', addr: `multicast.log.${bus.hood.id}.info`, fn: fnInfo}
 				];
 			}
 		}
