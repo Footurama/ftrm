@@ -3,11 +3,11 @@ const normalize = require('./lib/normalize-config.js');
 const Input = require('./lib/input.js');
 const Output = require('./lib/output.js');
 const IPC = require('./lib/ipc.js');
+const normalizeLog = require('./lib/normalize-log.js');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const events = require('events');
-const colors = require('colors');
 
 const readdir = (dir) => new Promise((resolve, reject) => fs.readdir(dir, (err, files) => {
 	if (err) reject(err);
@@ -17,21 +17,6 @@ const readFile = (file) => new Promise((resolve, reject) => fs.readFile(file, (e
 	if (err) reject(err);
 	else resolve(data);
 }));
-
-// Default log to stream converter
-colors.setTheme({
-	info: 'gray',
-	warn: 'yellow',
-	error: 'red'
-});
-const logToStringFactory = (type, log) => (o) => {
-	const fields = [];
-	if (type === 'tty') fields.push(o.date.toISOString());
-	fields.push(o.nodeName + (o.componentName ? ':' + o.componentName : ''));
-	if (type !== 'journal') fields.push((type === 'tty') ? o.level[o.level] : o.level);
-	fields.push(o.message);
-	log(fields.join('\t'), o);
-};
 
 class FTRM extends events.EventEmitter {
 	constructor (bus, opts) {
@@ -180,50 +165,13 @@ module.exports = async (opts) => {
 	if (opts.cert === undefined) opts.cert = await readFile(path.join(process.cwd(), os.hostname(), 'crt.pem'));
 	if (opts.key === undefined) opts.key = await readFile(path.join(process.cwd(), os.hostname(), 'key.pem'));
 	if (opts.autoRunDir === undefined) opts.autoRunDir = path.join(process.cwd(), os.hostname());
+	if (opts.log === undefined) opts.log = 'local-stdout';
 
 	// Kick-off partybus
 	const bus = opts.dryRun ? null : await partybus(opts);
 
 	// Set default log streams
-	if (bus) {
-		if (opts.log === undefined) opts.log = 'local-stdout';
-		if (typeof opts.log === 'string') {
-			let [scope, logger] = opts.log.split('-');
-
-			// Get log function
-			let fnError = () => {};
-			let fnWarn = () => {};
-			let fnInfo = () => {};
-			if (logger === 'stdout') {
-				const fn = logToStringFactory(process.stdout.isTTY ? 'tty' : 'stream', (l) => process.stdout.write(`${l}\n`));
-				fnError = fn;
-				fnWarn = fn;
-				fnInfo = fn;
-			} else if (logger === 'journal') {
-				const Journal = require('systemd-journald');
-				const log = new Journal({syslog_identifier: 'ftrm'});
-				fnError = logToStringFactory('journal', log.err);
-				fnWarn = logToStringFactory('journal', log.warn);
-				fnInfo = logToStringFactory('journal', log.info);
-			}
-
-			if (scope === 'global') {
-				opts.log = [
-					{level: 'error', addr: `multicast.log.+.error`, fn: fnError},
-					{level: 'warn', addr: `multicast.log.+.warn`, fn: fnWarn},
-					{level: 'info', addr: `multicast.log.+.info`, fn: fnInfo}
-				];
-			} else if (scope === 'none') {
-				opts.log = [];
-			} else {
-				opts.log = [
-					{level: 'error', addr: `multicast.log.${bus.hood.id}.error`, fn: fnError},
-					{level: 'warn', addr: `multicast.log.${bus.hood.id}.warn`, fn: fnWarn},
-					{level: 'info', addr: `multicast.log.${bus.hood.id}.info`, fn: fnInfo}
-				];
-			}
-		}
-	}
+	if (bus) opts.log = normalizeLog(opts.log, bus.hood.id);
 
 	// Create new instance of FTRM
 	const ftrm = new FTRM(bus, opts);
