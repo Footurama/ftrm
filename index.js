@@ -184,7 +184,7 @@ module.exports = async (opts) => {
 
 	// Install listener to SIGINT and SIGTERM
 	if (!opts.noSignalListeners) {
-		const shutdown = () => ftrm.shutdown();
+		const shutdown = () => ftrm.shutdown().then(() => process.exit());
 		process.on('SIGINT', shutdown);
 		process.on('SIGTERM', shutdown);
 	}
