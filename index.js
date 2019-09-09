@@ -50,11 +50,11 @@ class FTRM extends events.EventEmitter {
 			});
 
 			// Wire events with streams
-			const log = this._logFactory();
-			this.on('nodeAdd', (n) => log.info(`Added node ${n.name}`, 'cd394adc98d44675a6ffa1349f152331'));
-			this.on('nodeRemove', (n) => log.info(`Removed node ${n.name}`, '2ef0df5540b04627bd3b2cc3fc3fb169'));
-			this.on('componentAdd', (l, o) => log.info(`Added component ${o.name}`, '2b504e9c2c404995bd5ebd8fbd9ec697'));
-			this.on('componentRemove', (l, o) => log.info(`Removed component ${o.name}`, '1dc5db6582fd4d778c6364ae547c93a6'));
+			this._log = this._logFactory();
+			this.on('nodeAdd', (n) => this._log.info(`Added node ${n.name}`, 'cd394adc98d44675a6ffa1349f152331'));
+			this.on('nodeRemove', (n) => this._log.info(`Removed node ${n.name}`, '2ef0df5540b04627bd3b2cc3fc3fb169'));
+			this.on('componentAdd', (l, o) => this._log.info(`Added component ${o.name}`, '2b504e9c2c404995bd5ebd8fbd9ec697'));
+			this.on('componentRemove', (l, o) => this._log.info(`Removed component ${o.name}`, '1dc5db6582fd4d778c6364ae547c93a6'));
 		}
 	}
 
@@ -146,10 +146,13 @@ class FTRM extends events.EventEmitter {
 	async shutdown () {
 		const jobs = [];
 		this.components.forEach((c) => {
-			c.input.entries().forEach((i) => jobs.push(i._destroy()));
-			c.output.entries().forEach((o) => jobs.push(o._destroy()));
-			if (typeof c.destroy === 'function') jobs.push(c.destroy());
-			this.emit('componentRemove', c.lib, c.opts);
+			const subjobs = [];
+			c.input.entries().forEach((i) => subjobs.push(i._destroy()));
+			c.output.entries().forEach((o) => subjobs.push(o._destroy()));
+			if (typeof c.destroy === 'function') subjobs.push(c.destroy());
+			jobs.push(Promise.all(subjobs)
+				.catch((e) => this._log.error(e, 'f06370778ad0451d91849e79a141cefe'))
+				.then(() => this.emit('componentRemove', c.lib, c.opts)));
 		});
 		// Remove components
 		await Promise.all(jobs);

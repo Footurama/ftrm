@@ -280,6 +280,24 @@ describe(`FTRM shutdown`, () => {
 		expect(onComponentRemove.mock.calls[0][1]).toBe(opts);
 	});
 
+	test(`Forward destroy errors`, async () => {
+		const ftrm = await Ftrm({noSignalListeners: true});
+		const err = new Error('NOPE');
+		const lib = {factory: () => () => Promise.reject(err)};
+		await ftrm.run(lib, {});
+		await ftrm.shutdown();
+		const sendCalls = mockIPC.mock.instances[0].send.mock.calls;
+		expect(sendCalls[1][0]).toEqual(`multicast.log.${ftrm.id}.error`);
+		expect(sendCalls[1][1]).toEqual(`log`);
+		expect(sendCalls[1][2]).toMatchObject({
+			message: err.message,
+			stack: err.stack,
+			message_id: `f06370778ad0451d91849e79a141cefe`,
+			level: `error`
+		});
+		expect(mockPartybus._bus.hood.leave.mock.calls.length).toBe(1);
+	});
+
 	test(`Leave tubemail hood on shutdown`, async () => {
 		const ftrm = await Ftrm({noSignalListeners: true});
 		await ftrm.shutdown();
