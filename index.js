@@ -3,6 +3,7 @@ const normalize = require('./lib/normalize-config.js');
 const Input = require('./lib/input.js');
 const Output = require('./lib/output.js');
 const IPC = require('./lib/ipc.js');
+const debugFactory = require('./lib/debug.js');
 const normalizeLog = require('./lib/normalize-log.js');
 const path = require('path');
 const os = require('os');
@@ -55,6 +56,9 @@ class FTRM extends events.EventEmitter {
 			this.on('nodeRemove', (n) => this._log.info(`Removed node ${n.name}`, '2ef0df5540b04627bd3b2cc3fc3fb169'));
 			this.on('componentAdd', (l, o) => this._log.info(`Added component ${o.name}`, '2b504e9c2c404995bd5ebd8fbd9ec697'));
 			this.on('componentRemove', (l, o) => this._log.info(`Removed component ${o.name}`, '1dc5db6582fd4d778c6364ae547c93a6'));
+
+			// Wire debug interface
+			if (this.remoteDebug) debugFactory(this);
 		}
 	}
 
@@ -169,6 +173,7 @@ module.exports = async (opts) => {
 	if (opts.key === undefined) opts.key = await readFile(path.join(process.cwd(), os.hostname(), 'key.pem'));
 	if (opts.autoRunDir === undefined) opts.autoRunDir = path.join(process.cwd(), os.hostname());
 	if (opts.log === undefined) opts.log = 'local-stdout';
+	if (opts.remoteDebug === undefined) opts.remoteDebug = true;
 
 	// Kick-off partybus
 	const bus = opts.dryRun ? null : await partybus(opts);

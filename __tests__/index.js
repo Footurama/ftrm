@@ -25,6 +25,9 @@ const mockIPC = require('../lib/ipc.js');
 jest.mock('../lib/normalize-log.js');
 const mockNormalizeLog = require('../lib/normalize-log.js');
 
+jest.mock('../lib/debug.js');
+const mockDebugFactory = require('../lib/debug.js');
+
 const Ftrm = require('..');
 
 describe(`Init`, () => {
@@ -418,5 +421,23 @@ describe(`Logging`, () => {
 			message_id: `1dc5db6582fd4d778c6364ae547c93a6`,
 			level: `info`
 		});
+	});
+});
+
+describe('Debugging', () => {
+	test('set default remote debug access', async () => {
+		const opts = {noSignalListeners: true, log: 'none'};
+		await Ftrm(opts);
+		expect(opts.remoteDebug).toBe(true);
+	});
+
+	test('install debug handler', async () => {
+		const ftrm = await Ftrm({noSignalListeners: true, log: 'none', remoteDebug: true});
+		expect(mockDebugFactory.mock.calls[0][0]).toBe(ftrm);
+	});
+
+	test('do not install debug handler', async () => {
+		await Ftrm({noSignalListeners: true, log: 'none', remoteDebug: false});
+		expect(mockDebugFactory.mock.calls.length).toBe(0);
 	});
 });
