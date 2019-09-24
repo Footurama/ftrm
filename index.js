@@ -113,7 +113,7 @@ class FTRM extends events.EventEmitter {
 			entries: () => Array.from(output)
 		};
 		opts.output.forEach((o, n) => {
-			o = new Output(o, this.bus, log);
+			o = new Output(o, this.bus, log, opts);
 			o.index = n;
 			output[n] = o;
 			if (o.name) output[o.name] = o;

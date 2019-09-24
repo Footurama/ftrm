@@ -192,6 +192,7 @@ describe(`FTRM startup`, () => {
 		expect(mockInput.mock.calls[0][1]).toBe(mockPartybus._bus);
 		expect(mockOutput.mock.calls[0][0]).toBe(opts.output[0]);
 		expect(mockOutput.mock.calls[0][1]).toBe(mockPartybus._bus);
+		expect(mockOutput.mock.calls[0][3]).toBe(opts);
 		expect(onComponentAdd.mock.calls[0][0]).toBe(lib);
 		expect(onComponentAdd.mock.calls[0][1]).toBe(opts);
 		expect(ftrm2).toBe(ftrm);
