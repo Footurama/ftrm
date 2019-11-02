@@ -334,11 +334,15 @@ describe(`Logging`, () => {
 	].forEach((level) => test(`Create logger for level ${level}`, async () => {
 		const ftrm = await Ftrm({noSignalListeners: true});
 		const lib = {factory: jest.fn()};
+		const inputName = 'a';
+		const inputPipe = 'aa';
+		const outputName = 'b';
+		const outputPipe = 'bb';
 		const opts = {
 			id: 'abcedf',
 			name: 'TestInstance',
-			input: [{name: 'a'}],
-			output: [{name: 'b'}]
+			input: [{name: inputName, pipe: inputPipe}],
+			output: [{name: outputName, pipe: outputPipe}]
 		};
 		await ftrm.run(lib, opts);
 		const logger = lib.factory.mock.calls[0][3];
@@ -368,10 +372,30 @@ describe(`Logging`, () => {
 		});
 		const i = lib.factory.mock.calls[0][1][0];
 		expect(mockInput.mock.instances[0]).toBe(i);
-		expect(mockInput.mock.calls[0][2]).toBe(logger);
+		const loggerInput = mockInput.mock.calls[0][2][level];
+		loggerInput(msg);
+		expect(sendCalls[3][2]).toMatchObject({
+			level,
+			componentId: opts.id,
+			componentName: opts.name,
+			inputIndex: 0,
+			inputName,
+			inputPipe,
+			message: msg
+		});
 		const o = lib.factory.mock.calls[0][2][0];
 		expect(mockOutput.mock.instances[0]).toBe(o);
-		expect(mockOutput.mock.calls[0][2]).toBe(logger);
+		const loggerOutput = mockOutput.mock.calls[0][2][level];
+		loggerOutput(msg);
+		expect(sendCalls[4][2]).toMatchObject({
+			level,
+			componentId: opts.id,
+			componentName: opts.name,
+			outputIndex: 0,
+			outputName,
+			outputPipe,
+			message: msg
+		});
 	}));
 
 	test('Emit StatefulError', async () => {

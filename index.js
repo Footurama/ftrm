@@ -64,15 +64,12 @@ class FTRM extends events.EventEmitter {
 		}
 	}
 
-	_logFactory (opts) {
+	_logFactory (ctx) {
 		const send = (level, e, msgid) => {
 			const emit = (o) => this.ipc.send(`multicast.log.${this.id}.${level}`, 'log', o);
 
 			const obj = {level};
-			if (opts) {
-				obj.componentId = opts.id;
-				obj.componentName = opts.name;
-			}
+			if (ctx) Object.assign(obj, ctx);
 			if (e instanceof Error) {
 				obj.message = e.message;
 				obj.stack = e.stack;
@@ -119,15 +116,20 @@ class FTRM extends events.EventEmitter {
 		// Abort if no bus is attached (i.e. dry run)
 		if (!this.bus) return this;
 
-		// Create new logger
-		const log = this._logFactory(opts);
-
 		// Create inputs and outputs
 		const input = {
 			length: opts.input.length,
 			entries: () => Array.from(input)
 		};
 		opts.input.forEach((i, n) => {
+			const logCtx = {
+				componentId: opts.id,
+				componentName: opts.name,
+				inputIndex: n
+			};
+			if (i.name) logCtx.inputName = i.name;
+			if (i.pipe) logCtx.inputPipe = i.pipe;
+			const log = this._logFactory(logCtx);
 			i = new Input(i, this.bus, log);
 			i.index = n;
 			input[n] = i;
@@ -138,6 +140,14 @@ class FTRM extends events.EventEmitter {
 			entries: () => Array.from(output)
 		};
 		opts.output.forEach((o, n) => {
+			const logCtx = {
+				componentId: opts.id,
+				componentName: opts.name,
+				outputIndex: n
+			};
+			if (o.name) logCtx.outputName = o.name;
+			if (o.pipe) logCtx.outputPipe = o.pipe;
+			const log = this._logFactory(logCtx);
 			o = new Output(o, this.bus, log, opts);
 			o.index = n;
 			output[n] = o;
@@ -145,6 +155,10 @@ class FTRM extends events.EventEmitter {
 		});
 
 		// Run factory
+		const log = this._logFactory({
+			componentId: opts.id,
+			componentName: opts.name
+		});
 		const destroy = await lib.factory(opts, input, output, log, this);
 		this.components.push({lib, opts, input, output, destroy});
 		this.emit('componentAdd', lib, opts);
