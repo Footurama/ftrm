@@ -5,6 +5,7 @@ const Output = require('./lib/output.js');
 const IPC = require('./lib/ipc.js');
 const debugFactory = require('./lib/debug.js');
 const normalizeLog = require('./lib/normalize-log.js');
+const StatefulError = require('./stateful-error.js');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
@@ -24,6 +25,7 @@ class FTRM extends events.EventEmitter {
 		super();
 		Object.assign(this, opts);
 		this.components = [];
+		this.activeTimers = {};
 		if (bus) {
 			this.bus = bus;
 			this.id = bus.hood.id;
@@ -63,22 +65,45 @@ class FTRM extends events.EventEmitter {
 	}
 
 	_logFactory (opts) {
-		const send = (level, message, msgid) => {
+		const send = (level, e, msgid) => {
+			const emit = (o) => this.ipc.send(`multicast.log.${this.id}.${level}`, 'log', o);
+
 			const obj = {level};
 			if (opts) {
 				obj.componentId = opts.id;
 				obj.componentName = opts.name;
 			}
-			if (message instanceof Error) {
-				obj.message = message.message;
-				obj.stack = message.stack;
+			if (e instanceof Error) {
+				obj.message = e.message;
+				obj.stack = e.stack;
+				obj.type = e.name;
+				if (e.name === 'StatefulError') {
+					// Stateful error
+					obj.error_id = e.error_id;
+					obj.message_type = 'occurrance';
+
+					// Setup retransmit interval
+					this.activeTimers[e.error_id] = setInterval(() => {
+						obj.message_type = 'retransmission';
+						emit(obj);
+					}, StatefulError.RETRANSMIT_INTERVAL);
+
+					// Listen for resolve event
+					e.q.then(() => {
+						clearTimeout(this.activeTimers[e.error_id]);
+						delete this.activeTimers[e.error_id];
+						obj.message_type = 'resolved';
+						emit(obj);
+					});
+				}
 			} else {
-				obj.message = message;
+				obj.message = e;
 			}
 			if (msgid) {
 				obj.message_id = msgid;
 			}
-			this.ipc.send(`multicast.log.${this.id}.${level}`, 'log', obj);
+
+			emit(obj);
 		};
 		const error = (msg, msgid) => send('error', msg, msgid);
 		const warn = (msg, msgid) => send('warn', msg, msgid);
@@ -148,6 +173,10 @@ class FTRM extends events.EventEmitter {
 	}
 
 	async shutdown () {
+		// Destroy all timers
+		Object.values(this.activeTimers).forEach((t) => clearTimeout(t));
+
+		// Remove components
 		const jobs = [];
 		this.components.forEach((c) => {
 			const subjobs = [];
@@ -158,8 +187,9 @@ class FTRM extends events.EventEmitter {
 				.catch((e) => this._log.error(e, 'f06370778ad0451d91849e79a141cefe'))
 				.then(() => this.emit('componentRemove', c.lib, c.opts)));
 		});
-		// Remove components
 		await Promise.all(jobs);
+
+		// Close all connections
 		if (this.bus) await this.bus.hood.leave();
 	}
 }

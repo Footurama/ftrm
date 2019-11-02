@@ -1,5 +1,9 @@
 const path = require('path');
 const os = require('os');
+const StatefulError = require('../stateful-error.js');
+
+jest.useFakeTimers();
+afterEach(() => jest.clearAllTimers());
 
 jest.mock('partybus');
 const mockPartybus = require('partybus');
@@ -27,6 +31,8 @@ const mockNormalizeLog = require('../lib/normalize-log.js');
 
 jest.mock('../lib/debug.js');
 const mockDebugFactory = require('../lib/debug.js');
+
+const nextLoop = () => new Promise((resolve) => setImmediate(resolve));
 
 const Ftrm = require('..');
 
@@ -347,7 +353,8 @@ describe(`Logging`, () => {
 			componentId: opts.id,
 			componentName: opts.name,
 			message: err.message,
-			stack: err.stack
+			stack: err.stack,
+			type: 'Error'
 		});
 		const msg = 'ert';
 		log(msg);
@@ -366,6 +373,73 @@ describe(`Logging`, () => {
 		expect(mockOutput.mock.instances[0]).toBe(o);
 		expect(mockOutput.mock.calls[0][2]).toBe(logger);
 	}));
+
+	test('Emit StatefulError', async () => {
+		const ftrm = await Ftrm({noSignalListeners: true});
+		const lib = {factory: jest.fn()};
+		await ftrm.run(lib, {
+			id: 'abcedf',
+			name: 'TestInstance',
+			input: [],
+			output: []
+		});
+		const log = lib.factory.mock.calls[0][3].error;
+		const msg = 'abc';
+		const err = new StatefulError(msg);
+		log(err);
+		const sendCalls = mockIPC.mock.instances[0].send.mock.calls;
+		expect(sendCalls[1][0]).toEqual(`multicast.log.${ftrm.id}.error`);
+		expect(sendCalls[1][1]).toEqual(`log`);
+		expect(sendCalls[1][2]).toMatchObject({
+			type: 'StatefulError',
+			message: msg,
+			error_id: err.error_id,
+			message_type: 'occurrance'
+		});
+		jest.advanceTimersByTime(StatefulError.RETRANSMIT_INTERVAL);
+		expect(sendCalls[2][2]).toMatchObject({
+			type: 'StatefulError',
+			message: msg,
+			error_id: err.error_id,
+			message_type: 'retransmission'
+		});
+		jest.advanceTimersByTime(StatefulError.RETRANSMIT_INTERVAL);
+		expect(sendCalls[3][2]).toMatchObject({
+			type: 'StatefulError',
+			message: msg,
+			error_id: err.error_id,
+			message_type: 'retransmission'
+		});
+		err.resolve();
+		await nextLoop();
+		expect(sendCalls[4][2]).toMatchObject({
+			type: 'StatefulError',
+			message: msg,
+			error_id: err.error_id,
+			message_type: 'resolved'
+		});
+		jest.advanceTimersByTime(StatefulError.RETRANSMIT_INTERVAL);
+		expect(sendCalls.length).toBe(5);
+	});
+
+	test('Destroy ongoing StatefulError on exit', async () => {
+		const ftrm = await Ftrm({noSignalListeners: true});
+		const lib = {factory: jest.fn()};
+		await ftrm.run(lib, {
+			id: 'abcedf',
+			name: 'TestInstance',
+			input: [],
+			output: []
+		});
+		const log = lib.factory.mock.calls[0][3].error;
+		const err = new StatefulError();
+		log(err);
+		const sendCalls = mockIPC.mock.instances[0].send.mock.calls;
+		await ftrm.shutdown();
+		const curLength = sendCalls.length;
+		jest.advanceTimersByTime(StatefulError.RETRANSMIT_INTERVAL);
+		expect(sendCalls.length).toBe(curLength);
+	});
 
 	test('register log callback', async () => {
 		const fn = jest.fn();

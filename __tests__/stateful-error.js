@@ -30,3 +30,7 @@ test('resolve error', () => {
 	e.resolve();
 	return expect(e.q).resolves.toBeUndefined();
 });
+
+test('export retransmit interval', () => {
+	expect(StatefulError.RETRANSMIT_INTERVAL).toBe(10 * 60 * 1000);
+});

@@ -12,4 +12,6 @@ class StatefulError extends Error {
 	}
 }
 
+StatefulError.RETRANSMIT_INTERVAL = 10 * 60 * 1000;
+
 module.exports = StatefulError;
