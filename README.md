@@ -6,9 +6,9 @@ This is the core component. It glues this Frankenstein together. In the future t
  * Speaking of which: Even don't rely on your home server. Be decentralised. If your fridge needs to have a conversation with your toaster, they should talk directly. No broker, no central server.
  * Just use the Internet to enhance your IoT. For example: What will the weather be tomorrow? Where is your mobile phone? Is Trump still the president of the US?
 
-Wanna see an example? Check out the [Sandbox](https://github.com/Footurama/ftrm-sandbox).
+Wanna see an example? Check out the [the author's home automation based on Footurama](https://github.com/jue/node-my-home).
 
-Under the hood this thing is driven by [Partybus](https://github.com/jue89/node-partybus#readme). The implementation heavily relies on some newer JavaScript features for better readability of the source code. Thus, please use Node 8 for trying. Newer versions aren't working atm. Older versions neither. Sry. I'm gonna fix this in near future.
+Under the hood this thing is driven by [Partybus](https://github.com/jue89/node-partybus#readme). The implementation heavily relies on some newer JavaScript features for better readability of the source code. Thus, please use at least NodeJS 8 for running *Footurama*.
 
 # Concept
 
@@ -24,12 +24,19 @@ FTRM(opts).then((ftrm) => { ... });
 ```
 
 Starts a new Footurama instance. Optional `opts` has the following properties:
- * `ca`: The CA certificate for you Iot stuff. Default: `${cwd}/ca.crt.pem`
+ * `ca`: The CA certificate for your IoT stuff. Default: `${cwd}/ca.crt.pem`
  * `cert`: The X509 certificate for the local instance. It must be signed by the CA. Default: `${cwd}/${hostname}/crt.pem`
  * `key`: The private key of the local instance. Default: `${cwd}/${hostname}/key.pem`
  * `autoRunDir`: Automatically run all .js files in the given directory. Set to `null` if you don't want to run anything automatically. Default: `${cwd}/${hostname}`
  * `noSignalListeners`: Set this to `true` if you don't want Footurama to listen to SIGTERM and SIGINT signals and shutdown all loaded components automatically.
  * `dryRun`: If set to `true`, just options are checked and no nodes are actually started.
+ * `log`: Determines how to log events occurring within components. Possible values:
+   * `'local-stdout'`: Output all logs of locally operated components to STDOUT. (Default)
+   * `'global-stdout'`: Output all logs of all components of the realm to STDOUT.
+   * `'local-journal'`: Write all logs of locally operated components to Systemd Journal. The optional dependency *systemd-journals* has to be installed.
+   * `'global-journal'`: Write all logs of all components to Systemd Journal.
+   * `'none'`: No logging.
+ * `remoteDebug`: If set to `true`, this *node* will advertise all loaded components with all their options. This is useful, if you are planing to debug using [ftrm-inspector](http://github.com/Footurama/ftrm-inspector). Default: `true`
 
 ## Method: ftrm.run()
 
@@ -99,9 +106,11 @@ The `input` object is derived from the normalised `opts.input` array. Every inpu
 
 Every input holds the most recent value in `input[index].value` together with `input[index].timestamp` as the point in time when the originating output set the value. *(If the local node's time drifts, the timestamp can't be compared with the local time! So make sure NTP is set up.)*
 
-If the input's property `expire` has been specified, received values will expire after the specified amount of milliseconds. If current expiration state can be accessed by reading `input[index].expired`.
+If the input's property `expire` has been specified, received values will expire after the specified amount of milliseconds. If current expiration state can be accessed by reading `input[index].expired`. Furthermore, a log message is generated and dispatched with level *warn*. The property `logLevelExpiration` can be set to adjusted the log level to `'info'`, `'warn'`, `'error'` or `null`.
 
 If property `default` is given, the input's value is set to this value on start up and on expiration.
+
+The property `checkpoint` is a callback function `(value, timestamp, source) => {...}` that is called upon every input value. It may change `value` before it returns it. If `value` shall be rejected, just throw an `Error`. By default this error is logged with level *error*. The property `logLevelCheckpoint` can be set to adjusted the log level to `'info'`, `'warn'`, `'error'` or `null`.
 
 Every input is an instance of the *EventEmitter*. Thus, they throw events:
 
