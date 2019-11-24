@@ -6,9 +6,9 @@ This is the core component. It glues this Frankenstein together. In the future t
  * Speaking of which: Even don't rely on your home server. Be decentralised. If your fridge needs to have a conversation with your toaster, they should talk directly. No broker, no central server.
  * Just use the Internet to enhance your IoT. For example: What will the weather be tomorrow? Where is your mobile phone? Is Trump still the president of the US?
 
-Wanna see an example? Check out the [Sandbox](https://github.com/Footurama/ftrm-sandbox).
+Wanna see an example? Check out the [the author's home automation based on Footurama](https://github.com/jue89/node-my-home).
 
-Under the hood this thing is driven by [Partybus](https://github.com/jue89/node-partybus#readme). The implementation heavily relies on some newer JavaScript features for better readability of the source code. Thus, please use Node 8 for trying. Newer versions aren't working atm. Older versions neither. Sry. I'm gonna fix this in near future.
+Under the hood this thing is driven by [Partybus](https://github.com/jue89/node-partybus#readme). The implementation heavily relies on some newer JavaScript features for better readability of the source code. Thus, please use at least NodeJS 8 for running *Footurama*.
 
 # Concept
 
@@ -23,13 +23,20 @@ const FTRM = require('ftrm');
 FTRM(opts).then((ftrm) => { ... });
 ```
 
-Starts a new Footurama instance. Optional ```opts``` has the following properties:
- * ```ca```: The CA certificate for you Iot stuff. Default: ```${cwd}/ca.crt.pem```
- * ```cert```: The X509 certificate for the local instance. It must be signed by the CA. Default: ```${cwd}/${hostname}/crt.pem```
- * ```key```: The private key of the local instance. Default: ```${cwd}/${hostname}/key.pem```
- * ```autoRunDir```: Automatically run all .js files in the given directory. Set to ```null``` if you don't want to run anything automatically. Default: ```${cwd}/${hostname}```
- * ```noSignalListeners```: Set this to ```true``` if you don't want Footurama to listen to SIGTERM and SIGINT signals and shutdown all loaded components automatically.
- * ```dryRun```: If set to ```true```, just options are checked and no nodes are actually started.
+Starts a new Footurama instance. Optional `opts` has the following properties:
+ * `ca`: The CA certificate for your IoT stuff. Default: `${cwd}/ca.crt.pem`
+ * `cert`: The X509 certificate for the local instance. It must be signed by the CA. Default: `${cwd}/${hostname}/crt.pem`
+ * `key`: The private key of the local instance. Default: `${cwd}/${hostname}/key.pem`
+ * `autoRunDir`: Automatically run all .js files in the given directory. Set to `null` if you don't want to run anything automatically. Default: `${cwd}/${hostname}`
+ * `noSignalListeners`: Set this to `true` if you don't want Footurama to listen to SIGTERM and SIGINT signals and shutdown all loaded components automatically.
+ * `dryRun`: If set to `true`, just options are checked and no nodes are actually started.
+ * `log`: Determines how to log events occurring within components. Possible values:
+   * `'local-stdout'`: Output all logs of locally operated components to STDOUT. (Default)
+   * `'global-stdout'`: Output all logs of all components of the realm to STDOUT.
+   * `'local-journal'`: Write all logs of locally operated components to Systemd Journal. The optional dependency *systemd-journals* has to be installed.
+   * `'global-journal'`: Write all logs of all components to Systemd Journal.
+   * `'none'`: No logging.
+ * `remoteDebug`: If set to `true`, this *node* will advertise all loaded components with all their options. This is useful, if you are planing to debug using [ftrm-inspector](http://github.com/Footurama/ftrm-inspector). Default: `true`
 
 ## Method: ftrm.run()
 
@@ -37,7 +44,7 @@ Starts a new Footurama instance. Optional ```opts``` has the following propertie
 ftrm.run(component, opts).then((ftrm) => {...});
 ```
 
-Run the given ```component``` with stated ```opts```.
+Run the given `component` with stated `opts`.
 
 ## Method: ftrm.runDir()
 
@@ -45,7 +52,7 @@ Run the given ```component``` with stated ```opts```.
 ftrm.runDir(path).then((ftrm) => {...});
 ```
 
-Load all .js files in given ```path```. Each must return an array: ```[component, opts]```. Those items are used to call ```ftrm.run(component, opts)```.
+Load all .js files in given `path`. Each must return an array: `[component, opts]`. Those items are used to call `ftrm.run(component, opts)`.
 
 ## Method: ftrm.shutdown()
 
@@ -63,17 +70,17 @@ The following line will load the NPM package *your-package* and look for the fil
 const component = require('your-package/your-component');
 ```
 
-The loaded ```component``` is an object with the following properties:
- * ```factory```: A mandatory function to create an new instance of the component.
- * ```check```: An optional function to check the given parameters and set defaults. This is called before ```factory```.
+The loaded `component` is an object with the following properties:
+ * `factory`: A mandatory function to create an new instance of the component.
+ * `check`: An optional function to check the given parameters and set defaults. This is called before `factory`.
 
-The component's instantiation is based on the object ```opts``` that is given by the component's user. *(cf. API for users -> Method: ftrm.run())* All object's properties are handed over to the components factory except for ```opts.input``` and ```opts.output```. They are normalised before they are processed:
+The component's instantiation is based on the object `opts` that is given by the component's user. *(cf. API for users -> Method: ftrm.run())* All object's properties are handed over to the components factory except for `opts.input` and `opts.output`. They are normalised before they are processed:
 
- * ```{input: 'pipe-name'}``` -> ```{input: [{pipe: 'pipe-name'}]}```
- * ```{input: ['pipe1', 'pipe2']}``` -> ```{input: [{pipe: 'pipe1'}, {pipe: 'pipe1'}]}```
- * ```{input: {'name1': 'pipe1', 'name2': 'pipe2'}}``` -> ```{input: [{name: 'name1', pipe: 'pipe1'}, {name: 'name2', pipe: 'pipe1'}]}```
+ * `{input: 'pipe-name'}` -> `{input: [{pipe: 'pipe-name'}]}`
+ * `{input: ['pipe1', 'pipe2']}` -> `{input: [{pipe: 'pipe1'}, {pipe: 'pipe1'}]}`
+ * `{input: {'name1': 'pipe1', 'name2': 'pipe2'}}` -> `{input: [{name: 'name1', pipe: 'pipe1'}, {name: 'name2', pipe: 'pipe1'}]}`
 
-The same rules apply to the property ```output```. This may look a little bit complicated at first glance. But it helps to build components with an easy but also machine-readable interface.
+The same rules apply to the property `output`. This may look a little bit complicated at first glance. But it helps to build components with an easy but also machine-readable interface.
 
 ## Method: component.check()
 
@@ -81,7 +88,7 @@ The same rules apply to the property ```output```. This may look a little bit co
 component.check = (opts) => { ... };
 ```
 
-This optional function is called after normalisation of ```opts``` and can check them. If an error is thrown are a rejected promised return, the instantiation will be aborted and the factory is not called.
+This optional function is called after normalisation of `opts` and can check them. If an error is thrown are a rejected promised return, the instantiation will be aborted and the factory is not called.
 
 ## Method: component.factory()
 
@@ -91,15 +98,19 @@ component.factory = (opts, input, output, bus) => { ... };
 
 ### Argument: opts
 
-The first argument ```opts``` holds the options specified by the user.
+The first argument `opts` holds the options specified by the user.
 
 ### Argument: input
 
-The ```input``` object is derived from the normalised ```opts.input``` array. Every input can always be accessed by its index, like an array. The index corresponds to the respective item's index in ```opts.input```. If the ```name``` property of the input is set, it can also by accessed by ```input[name]```.
+The `input` object is derived from the normalised `opts.input` array. Every input can always be accessed by its index, like an array. The index corresponds to the respective item's index in `opts.input`. If the `name` property of the input is set, it can also by accessed by `input[name]`.
 
-Every input holds the most recent value in ```input[index].value``` together with ```input[index].timestamp``` as the point in time when the originating output set the value. *(If the local node's time drifts, the timestamp can't be compared with the local time! So make sure NTP is set up.)*
+Every input holds the most recent value in `input[index].value` together with `input[index].timestamp` as the point in time when the originating output set the value. *(If the local node's time drifts, the timestamp can't be compared with the local time! So make sure NTP is set up.)*
 
-If the input's property ```expire``` has been specified, received values will expire after the specified amount of milliseconds. If current expiration state can be accessed by reading ```input[index].expired```.
+If the input's property `expire` has been specified, received values will expire after the specified amount of milliseconds. If current expiration state can be accessed by reading `input[index].expired`. Furthermore, a log message is generated and dispatched with level *warn*. The property `logLevelExpiration` can be set to adjusted the log level to `'info'`, `'warn'`, `'error'` or `null`.
+
+If property `default` is given, the input's value is set to this value on start up and on expiration.
+
+The property `checkpoint` is a callback function `(value, timestamp, source) => {...}` that is called upon every input value. It may change `value` before it returns it. If `value` shall be rejected, just throw an `Error`. By default this error is logged with level *error*. The property `logLevelCheckpoint` can be set to adjusted the log level to `'info'`, `'warn'`, `'error'` or `null`.
 
 Every input is an instance of the *EventEmitter*. Thus, they throw events:
 
@@ -119,11 +130,13 @@ input[index].on('expire', () => {
 
 ### Argument: output
 
-The ```output``` object is derived from the normalised ```opts.output``` array. Every output can always be accessed by its index, like an array. The index corresponds to the respective item's index in ```opts.output```. If the ```name``` property of the output is set, it can also by accessed by ```output[name]```.
+The `output` object is derived from the normalised `opts.output` array. Every output can always be accessed by its index, like an array. The index corresponds to the respective item's index in `opts.output`. If the `name` property of the output is set, it can also by accessed by `output[name]`.
 
-The ```throttle``` property defines an interval in milliseconds. If the values is set multiple times within that interval and doesn't change, it will only be published once in the pipe. This feature may reduces noise in the system.
+The `throttle` property defines an interval in milliseconds. If the values is set multiple times within that interval and doesn't change, it will only be published once in the pipe. This feature may reduces noise in the system.
 
-If ```output[index].value``` is written, the value will be put on the specified ```pipe``` together with the current timestamp.
+The `retransmit` property defines an interval in milliseconds. If the values is not set within the given interval, the last value will be published again into the pipe.
+
+If `output[index].value` is written, the value will be put on the specified `pipe` together with the current timestamp. Alternatively, `output[index].set(value, timestamp)` can be called if setting the timestamp manually is required.
 
 ### Argument: bus
 

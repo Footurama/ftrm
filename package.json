@@ -1,6 +1,6 @@
 {
   "name": "ftrm",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Footurama",
   "main": "index.js",
   "scripts": {
@@ -23,7 +23,8 @@
   "homepage": "https://github.com/Footurama/ftrm#readme",
   "devDependencies": {
     "happiness": "^10.0.2",
-    "jest": "^24.1.0"
+    "jest": "^24.9.0",
+    "pre-commit": "^1.2.2"
   },
   "happiness": {
     "globals": [
@@ -31,7 +32,8 @@
       "describe",
       "test",
       "expect",
-      "beforeEach"
+      "beforeEach",
+      "afterEach"
     ]
   },
   "jest": {
@@ -39,7 +41,14 @@
     "clearMocks": true
   },
   "dependencies": {
-    "partybus": "^2.0.0",
+    "colors": "^1.4.0",
+    "partybus": "^2.1.0",
     "tubemail-mdns": "^2.0.0"
-  }
+  },
+  "optionalDependencies": {
+    "systemd-journald": "^1.5.1"
+  },
+  "pre-commit": [
+    "test"
+  ]
 }

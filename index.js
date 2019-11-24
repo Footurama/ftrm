@@ -2,9 +2,14 @@ const partybus = require('partybus');
 const normalize = require('./lib/normalize-config.js');
 const Input = require('./lib/input.js');
 const Output = require('./lib/output.js');
+const IPC = require('./lib/ipc.js');
+const debugFactory = require('./lib/debug.js');
+const normalizeLog = require('./lib/normalize-log.js');
+const StatefulError = require('./stateful-error.js');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
+const events = require('events');
 
 const readdir = (dir) => new Promise((resolve, reject) => fs.readdir(dir, (err, files) => {
 	if (err) reject(err);
@@ -15,11 +20,92 @@ const readFile = (file) => new Promise((resolve, reject) => fs.readFile(file, (e
 	else resolve(data);
 }));
 
-class FTRM {
+class FTRM extends events.EventEmitter {
 	constructor (bus, opts) {
+		super();
 		Object.assign(this, opts);
-		this._bus = bus;
-		this._destroy = [];
+		this.components = [];
+		this.activeTimers = {};
+		if (bus) {
+			this.bus = bus;
+			this.id = bus.hood.id;
+			this.name = bus.hood.info.subject.commonName;
+			this.ipc = new IPC(bus);
+			this.bus.hood.on('foundNeigh', (n) => this.emit('nodeAdd', {
+				id: n.id,
+				name: n.info.subject.commonName
+			})).on('lostNeigh', (n) => this.emit('nodeRemove', {
+				id: n.id,
+				name: n.info.subject.commonName
+			}));
+		}
+		if (this.ipc) {
+			// Setup log streams which translates IPC log messages
+			// to write on Writable streams.
+			const fns = {};
+			const onLog = (obj) => {
+				if (fns[obj.level]) fns[obj.level](obj);
+			};
+			this.ipc.on('log', onLog);
+			this.log.forEach((l) => {
+				this.ipc.subscribe(l.addr);
+				fns[l.level] = l.fn;
+			});
+
+			// Wire events with streams
+			this._log = this._logFactory();
+			this.on('nodeAdd', (n) => this._log.info(`Added node ${n.name}`, 'cd394adc98d44675a6ffa1349f152331'));
+			this.on('nodeRemove', (n) => this._log.info(`Removed node ${n.name}`, '2ef0df5540b04627bd3b2cc3fc3fb169'));
+			this.on('componentAdd', (l, o) => this._log.info(`Added component ${o.name}`, '2b504e9c2c404995bd5ebd8fbd9ec697'));
+			this.on('componentRemove', (l, o) => this._log.info(`Removed component ${o.name}`, '1dc5db6582fd4d778c6364ae547c93a6'));
+
+			// Wire debug interface
+			if (this.remoteDebug) debugFactory(this);
+		}
+	}
+
+	_logFactory (ctx) {
+		const send = (level, e, msgid) => {
+			const emit = (o) => this.ipc.send(`multicast.log.${this.id}.${level}`, 'log', o);
+
+			const obj = {level};
+			if (ctx) Object.assign(obj, ctx);
+			if (e instanceof Error) {
+				obj.message = e.message;
+				obj.stack = e.stack;
+				obj.type = e.name;
+				if (e.name === 'StatefulError') {
+					// Stateful error
+					obj.error_id = e.error_id;
+					obj.message_type = 'occurrance';
+
+					// Setup retransmit interval
+					this.activeTimers[e.error_id] = setInterval(() => {
+						obj.message_type = 'retransmission';
+						emit(obj);
+					}, StatefulError.RETRANSMIT_INTERVAL);
+
+					// Listen for resolve event
+					e.q.then(() => {
+						clearTimeout(this.activeTimers[e.error_id]);
+						delete this.activeTimers[e.error_id];
+						obj.message_type = 'resolved';
+						emit(obj);
+					});
+				}
+			} else {
+				obj.message = e;
+			}
+			if (msgid) {
+				obj.message_id = msgid;
+			}
+
+			emit(obj);
+		};
+		const error = (msg, msgid) => send('error', msg, msgid);
+		const warn = (msg, msgid) => send('warn', msg, msgid);
+		const info = (msg, msgid) => send('info', msg, msgid);
+		return {error, warn, info};
 	}
 
 	async run (lib, opts) {
@@ -27,8 +113,8 @@ class FTRM {
 		normalize(opts);
 		if (lib.check) await lib.check(opts);
 
-		// Abort if we are in dryRun mode
-		if (this.dryRun) return this;
+		// Abort if no bus is attached (i.e. dry run)
+		if (!this.bus) return this;
 
 		// Create inputs and outputs
 		const input = {
@@ -36,7 +122,15 @@ class FTRM {
 			entries: () => Array.from(input)
 		};
 		opts.input.forEach((i, n) => {
-			i = new Input(i, this._bus);
+			const logCtx = {
+				componentId: opts.id,
+				componentName: opts.name,
+				inputIndex: n
+			};
+			if (i.name) logCtx.inputName = i.name;
+			if (i.pipe) logCtx.inputPipe = i.pipe;
+			const log = this._logFactory(logCtx);
+			i = new Input(i, this.bus, log);
 			i.index = n;
 			input[n] = i;
 			if (i.name) input[i.name] = i;
@@ -46,15 +140,28 @@ class FTRM {
 			entries: () => Array.from(output)
 		};
 		opts.output.forEach((o, n) => {
-			o = new Output(o, this._bus);
+			const logCtx = {
+				componentId: opts.id,
+				componentName: opts.name,
+				outputIndex: n
+			};
+			if (o.name) logCtx.outputName = o.name;
+			if (o.pipe) logCtx.outputPipe = o.pipe;
+			const log = this._logFactory(logCtx);
+			o = new Output(o, this.bus, log, opts);
 			o.index = n;
 			output[n] = o;
 			if (o.name) output[o.name] = o;
 		});
 
 		// Run factory
-		const destroy = await lib.factory(opts, input, output, this._bus);
-		if (typeof destroy === 'function') this._destroy.push(destroy);
+		const log = this._logFactory({
+			componentId: opts.id,
+			componentName: opts.name
+		});
+		const destroy = await lib.factory(opts, input, output, log, this);
+		this.components.push({lib, opts, input, output, destroy});
+		this.emit('componentAdd', lib, opts);
 
 		return this;
 	}
@@ -80,8 +187,24 @@ class FTRM {
 	}
 
 	async shutdown () {
-		await Promise.all(this._destroy.map((d) => d()));
-		await this._bus.hood.leave();
+		// Destroy all timers
+		Object.values(this.activeTimers).forEach((t) => clearTimeout(t));
+
+		// Remove components
+		const jobs = [];
+		this.components.forEach((c) => {
+			const subjobs = [];
+			c.input.entries().forEach((i) => subjobs.push(i._destroy()));
+			c.output.entries().forEach((o) => subjobs.push(o._destroy()));
+			if (typeof c.destroy === 'function') subjobs.push(c.destroy());
+			jobs.push(Promise.all(subjobs)
+				.catch((e) => this._log.error(e, 'f06370778ad0451d91849e79a141cefe'))
+				.then(() => this.emit('componentRemove', c.lib, c.opts)));
+		});
+		await Promise.all(jobs);
+
+		// Close all connections
+		if (this.bus) await this.bus.hood.leave();
 	}
 }
 
@@ -93,26 +216,27 @@ module.exports = async (opts) => {
 	if (opts.cert === undefined) opts.cert = await readFile(path.join(process.cwd(), os.hostname(), 'crt.pem'));
 	if (opts.key === undefined) opts.key = await readFile(path.join(process.cwd(), os.hostname(), 'key.pem'));
 	if (opts.autoRunDir === undefined) opts.autoRunDir = path.join(process.cwd(), os.hostname());
+	if (opts.log === undefined) opts.log = 'local-stdout';
+	if (opts.remoteDebug === undefined) opts.remoteDebug = true;
 
 	// Kick-off partybus
-	const bus = opts.dryRun ? {} : await partybus(opts);
+	const bus = opts.dryRun ? null : await partybus(opts);
+
+	// Set default log streams
+	if (bus) opts.log = normalizeLog(opts.log, bus.hood.id);
 
 	// Create new instance of FTRM
 	const ftrm = new FTRM(bus, opts);
 
+	// Run dir if specified
+	if (opts.autoRunDir) await ftrm.runDir(opts.autoRunDir);
+
 	// Install listener to SIGINT and SIGTERM
 	if (!opts.noSignalListeners) {
-		const shutdown = async () => {
-			await ftrm.shutdown();
-			await bus.hood.leave();
-			process.exit();
-		};
+		const shutdown = () => ftrm.shutdown().then(() => process.exit());
 		process.on('SIGINT', shutdown);
 		process.on('SIGTERM', shutdown);
 	}
-
-	// Run dir if specified
-	if (opts.autoRunDir) await ftrm.runDir(opts.autoRunDir);
 
 	return ftrm;
 };
