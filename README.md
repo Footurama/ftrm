@@ -6,7 +6,7 @@ This is the core component. It glues this Frankenstein together. In the future t
  * Speaking of which: Even don't rely on your home server. Be decentralised. If your fridge needs to have a conversation with your toaster, they should talk directly. No broker, no central server.
  * Just use the Internet to enhance your IoT. For example: What will the weather be tomorrow? Where is your mobile phone? Is Trump still the president of the US?
 
-Wanna see an example? Check out the [the author's home automation based on Footurama](https://github.com/jue/node-my-home).
+Wanna see an example? Check out the [the author's home automation based on Footurama](https://github.com/jue89/node-my-home).
 
 Under the hood this thing is driven by [Partybus](https://github.com/jue89/node-partybus#readme). The implementation heavily relies on some newer JavaScript features for better readability of the source code. Thus, please use at least NodeJS 8 for running *Footurama*.
 
